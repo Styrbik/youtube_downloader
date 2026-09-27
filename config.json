@@ -1,0 +1,333 @@
+{
+  "mode": "video",
+  "container": "mp4",
+  "audio_codec": "aac",
+  "last_format_id": null,
+  "recent_urls": [
+    "https://vkvideo.ru/video511465315_456239074",
+    "https://music.youtube.com/watch?v=SeO5TRR-W4o&si=pzktKRMk2kZkU4b-",
+    "https://music.youtube.com/watch?v=WTbttMnoKFI&si=r8uGlpdERKF3A0dw",
+    "https://music.youtube.com/watch?v=5ALf7RhxQ6I&si=BpUD_d6QRAxoz7Zp",
+    "https://music.youtube.com/watch?v=RXY-X67xy-c&si=xUL0l9U0UJLtQMZK",
+    "https://music.youtube.com/watch?v=j_4bZuDiy4E&si=mcPF_aEEpPXSmIgB",
+    "https://music.youtube.com/watch?v=i7vJaGG6ELU&si=oIb5Uiomv6R48G9S",
+    "https://youtu.be/Jh9IjDQIVh0?si=CIohiBxObHMyOdkP",
+    "https://youtu.be/Jh9IjDQIVh0?si=weyCWrndlFz8KlOJ",
+    "https://youtu.be/Jh9IjDQIVh0?si=Ag85vehcmKrCfSLB"
+  ],
+  "output_dir": "C:/Users/User/Downloads/Compressed",
+  "window_geometry": "900x640",
+  "audio_mode": "best",
+  "theme": "red",
+  "history": [
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Видео\\Фильм ＂Близнецы＂ (1988) Арнольд Шварценеггер, Дэнни Де Вито. [mp4-aac].mp4",
+      "url": "https://vkvideo.ru/video511465315_456239074",
+      "title": "Фильм \"Близнецы\" (1988) Арнольд Шварценеггер, Дэнни Де Вито.",
+      "date": "2026-09-27 00:50"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Музыка\\i don't care (Ultra Slowed) [mp3].mp3",
+      "url": "https://music.youtube.com/watch?v=SeO5TRR-W4o&si=pzktKRMk2kZkU4b-",
+      "title": "i don't care (Ultra Slowed)",
+      "date": "2026-09-27 00:40"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Архив\\DE PSYCOSE HARDTEKK.mp4",
+      "url": "https://music.youtube.com/watch?v=WTbttMnoKFI&si=r8uGlpdERKF3A0dw",
+      "title": "DE PSYCOSE HARDTEKK",
+      "date": "2026-09-27 00:13"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Видео\\DE PSYCOSE HARDTEKK [mp4-a320-aac].mp4",
+      "url": "https://music.youtube.com/watch?v=WTbttMnoKFI&si=r8uGlpdERKF3A0dw",
+      "title": "DE PSYCOSE HARDTEKK",
+      "date": "2026-09-27 00:12"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Музыка\\DE PSYCOSE HARDTEKK [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=WTbttMnoKFI&si=r8uGlpdERKF3A0dw",
+      "title": "DE PSYCOSE HARDTEKK",
+      "date": "2026-09-27 00:12"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\DE PSYCOSE HARDTEKK [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=WTbttMnoKFI&si=r8uGlpdERKF3A0dw",
+      "title": "DE PSYCOSE HARDTEKK",
+      "date": "2026-09-27 00:03"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\DE PSYCOSE HARDTEKK [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=WTbttMnoKFI&si=r8uGlpdERKF3A0dw",
+      "title": "DE PSYCOSE HARDTEKK",
+      "date": "2026-09-27 00:02"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Walk in the cold (Slowed) [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=5ALf7RhxQ6I&si=BpUD_d6QRAxoz7Zp",
+      "title": "Walk in the cold (Slowed)",
+      "date": "2026-09-26 23:00"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\truth yandere^^ (ultra mega slowed) [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=RXY-X67xy-c&si=xUL0l9U0UJLtQMZK",
+      "title": "truth yandere^^ (ultra mega slowed)",
+      "date": "2026-09-26 22:55"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\truth yandere^^ (ultra mega slowed) [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=RXY-X67xy-c&si=xUL0l9U0UJLtQMZK",
+      "title": "truth yandere^^ (ultra mega slowed)",
+      "date": "2026-09-26 22:55"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Тима Белорусских - Витаминка (slowed + bass tiktok mix) [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=j_4bZuDiy4E&si=mcPF_aEEpPXSmIgB",
+      "title": "Тима Белорусских - Витаминка (slowed + bass tiktok mix)",
+      "date": "2026-09-26 22:54"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\S0N6F0RMYD34TH [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=i7vJaGG6ELU&si=oIb5Uiomv6R48G9S",
+      "title": "S0N6F0RMYD34TH",
+      "date": "2026-09-26 22:30"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Современное искусство... мдаааааааааааа [mp4-a320-mp3].mp4",
+      "url": "https://youtu.be/Jh9IjDQIVh0?si=CIohiBxObHMyOdkP",
+      "title": "Современное искусство... мдаааааааааааа",
+      "date": "2026-09-26 16:29"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Современное искусство... мдаааааааааааа [mp4-a320-mp3].mp4",
+      "url": "https://youtu.be/Jh9IjDQIVh0?si=weyCWrndlFz8KlOJ",
+      "title": "Современное искусство... мдаааааааааааа",
+      "date": "2026-09-26 15:55"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Современное искусство... мдаааааааааааа [mp4-a320-mp3].mp3",
+      "url": "https://youtu.be/Jh9IjDQIVh0?si=Ag85vehcmKrCfSLB",
+      "title": "Современное искусство... мдаааааааааааа",
+      "date": "2026-09-26 15:49"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=iBt4Hhe-14XsAk3l",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 15:46"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp4-a320-mp3].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=iBt4Hhe-14XsAk3l",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 15:45"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp4-a320-mp3].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=iBt4Hhe-14XsAk3l",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 15:45"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=g8SMGqxMHqonLQRw",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 15:13"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=g8SMGqxMHqonLQRw",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 15:13"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=g8SMGqxMHqonLQRw",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 15:08"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=g8SMGqxMHqonLQRw",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 15:08"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=g8SMGqxMHqonLQRw",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 15:00"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=g8SMGqxMHqonLQRw",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 14:49"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=g8SMGqxMHqonLQRw",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 14:45"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=g8SMGqxMHqonLQRw",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 14:44"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=g8SMGqxMHqonLQRw",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 14:36"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=g8SMGqxMHqonLQRw",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 14:35"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=a_ff2fqcY3tf9y29",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 13:39"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Ясный мой свет [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=UKfQTQvmQ2s&si=eavckkZujRZQWz0G",
+      "title": "Ясный мой свет",
+      "date": "2026-09-26 13:22"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\tesla (slowed electro mix) [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=vCnE1wMEmgM&si=A1chja7YkB73B926",
+      "title": "tesla (slowed electro mix)",
+      "date": "2026-09-26 13:21"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=sTkwPRev8h8Ej-4f",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 13:21"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=sTkwPRev8h8Ej-4f",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 13:20"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=sTkwPRev8h8Ej-4f",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 13:12"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=sTkwPRev8h8Ej-4f",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 13:11"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=sTkwPRev8h8Ej-4f",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 13:11"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=sTkwPRev8h8Ej-4f",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 13:06"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=sTkwPRev8h8Ej-4f",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 13:05"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=sTkwPRev8h8Ej-4f",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 12:57"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Попрошу тебя [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=ekDWsZv0riI&si=liU1r5C_myI1U5Kh",
+      "title": "Попрошу тебя",
+      "date": "2026-09-26 12:57"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=c7y4MV9nga7o_abX",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 12:53"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=c7y4MV9nga7o_abX",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 12:49"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Мой ненаглядный [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=rHk3MgLgMfU&si=c7y4MV9nga7o_abX",
+      "title": "Мой ненаглядный",
+      "date": "2026-09-26 12:47"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Весна [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=JQl-xfER3RU&si=EMLgm1VdJqI3xUB6",
+      "title": "Весна",
+      "date": "2026-09-26 12:44"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Элджей-розовое вино √speed up√ [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=FNmlqZy-CSY&si=0-7iMZArMZbEz-W1",
+      "title": "Элджей-розовое вино √speed up√",
+      "date": "2026-09-26 12:32"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Элджей-розовое вино √speed up√ [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=FNmlqZy-CSY&si=0-7iMZArMZbEz-W1",
+      "title": "Элджей-розовое вино √speed up√",
+      "date": "2026-09-26 12:32"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\DE PSYCOSE HARDTEKK [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=WTbttMnoKFI&si=p_GLwlhBVKQu5g5s",
+      "title": "DE PSYCOSE HARDTEKK",
+      "date": "2026-09-26 01:04"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\DE PSYCOSE (Sped Up) [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=lsB08FskumQ&si=7O4XT_-UN6E5hflb",
+      "title": "DE PSYCOSE (Sped Up)",
+      "date": "2026-09-26 01:01"
+    },
+    {
+      "file": "C:\\Users\\User\\Downloads\\Compressed\\Элджей-розовое вино √speed up√ [mp3-320].mp3",
+      "url": "https://music.youtube.com/watch?v=FNmlqZy-CSY&si=wG95728EyGyeX5mQ",
+      "title": "Элджей-розовое вино √speed up√",
+      "date": "2026-09-26 01:00"
+    }
+  ],
+  "mark_settings": true,
+  "clear_thumb_cache": true,
+  "sounds_enabled": true,
+  "toasts_enabled": true,
+  "preview_enabled": true,
+  "animations_enabled": true,
+  "embed_metadata": true,
+  "check_updates": true,
+  "auto_update_ytdlp": true,
+  "active_icon": "black",
+  "profiles": {},
+  "auto_sort": true,
+  "sort_audio_dir": "Музыка",
+  "sort_video_dir": "Видео",
+  "sort_archive_dir": "Архив"
+}
