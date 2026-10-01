@@ -4,7 +4,7 @@
 
 **Only Tube, but fucking good**
 
-[![Version](https://img.shields.io/badge/version-0.5.0-red)](https://github.com/Styrbik/youtube-downloader)
+[![Version](https://img.shields.io/badge/version-0.5.0-red)](https://github.com/Styrbik/youtube_downloader)
 [![Python](https://img.shields.io/badge/python-3.12+-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -96,8 +96,8 @@
 ### Из исходников
 
 ```bash
-git clone https://github.com/Styrbik/youtube-downloader.git
-cd youtube-downloader
+git clone https://github.com/Styrbik/youtube_downloader.git
+cd youtube_downloader
 pip install -r requirements.txt
 python downloader_launcher.py
 ```
