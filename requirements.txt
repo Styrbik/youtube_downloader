@@ -3,3 +3,5 @@ Pillow
 mutagen
 numpy
 pygame-ce
+PyQt6
+pyinstaller
