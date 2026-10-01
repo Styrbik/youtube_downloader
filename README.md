@@ -12,6 +12,25 @@
 Красивая качалка для YouTube, YouTube Music и других платформ.
 С кастомным интерфейсом, темами, плеером и праздничными эффектами.
 
+[![Скриншоты](docs/screenshots/1.png)](https://styrbik.github.io/youtube_downloader/#screenshots)
+
+</div>
+
+---
+
+## 📸 Как это выглядит
+
+<div align="center">
+
+### 1. Вставь ссылку
+![Вставь ссылку](docs/screenshots/1.png)
+
+### 2. Выбери качество
+![Выбери качество](docs/screenshots/2.png)
+
+### 3. Скачивай
+![Скачивай](docs/screenshots/3.png)
+
 </div>
 
 ---
