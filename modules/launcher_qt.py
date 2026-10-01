@@ -314,4 +314,3 @@ if __name__ == "__main__":
         if arg.startswith("--chosen="):
             chosen = arg.split("=", 1)[1]
     run(chosen)
-    run(chosen)

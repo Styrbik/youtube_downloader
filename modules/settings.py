@@ -6,8 +6,8 @@ from config import CONFIG_PATH, DOWNLOADS_DIR
 DEFAULTS = {
     "mode": "video",
     "container": "mp4",
-    "audio_codec": "aac",         # aac | opus | mp3
-    "audio_mode": "best",         # best | 128 | 192 | 256 | 320 | none
+    "audio_codec": "aac",
+    "audio_mode": "best",
     "last_format_id": None,
     "recent_urls": [],
     "output_dir": None,
@@ -26,14 +26,9 @@ DEFAULTS = {
     "animations_enabled": True,
     "embed_metadata": True,
     "check_updates": True,
-    "embed_metadata": True,
     "auto_update_ytdlp": True,
     "active_icon": "classic",
     "profiles": {},
-    "auto_sort": False,
-    "sort_audio_dir": "Музыка",
-    "sort_video_dir": "Видео",
-    "sort_archive_dir": "Архив",
 }
 
 def save_profile(settings, name, profile_data):
