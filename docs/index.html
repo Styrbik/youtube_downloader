@@ -454,6 +454,145 @@
       line-height: 1.6;
     }
 
+    /* ============ СКРИНШОТЫ / КАРУСЕЛЬ ============ */
+    .screenshots {
+      max-width: 900px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .carousel {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 900 / 640;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+      transition: border-color 0.3s;
+    }
+
+    .carousel:hover {
+      border-color: var(--accent);
+    }
+
+    .carousel-track {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+      will-change: transform;
+    }
+
+    .carousel-slide {
+      flex: 0 0 100%;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    .carousel-slide img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;
+    }
+
+    .carousel-caption {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 60px 24px 20px;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0.6) 50%, transparent);
+      color: white;
+      font-size: 15px;
+      font-weight: 600;
+      pointer-events: none;
+    }
+
+    /* ===== Кнопки слева / справа ===== */
+    .carousel-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.25s;
+      z-index: 10;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      opacity: 0;
+      padding: 0;
+    }
+
+    .carousel:hover .carousel-btn {
+      opacity: 1;
+    }
+
+    .carousel-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      transform: translateY(-50%) scale(1.1);
+      box-shadow: 0 8px 24px rgba(230, 33, 23, 0.5);
+    }
+
+    .carousel-btn:active {
+      transform: translateY(-50%) scale(0.95);
+    }
+
+    .carousel-btn.prev {
+      left: 16px;
+    }
+
+    .carousel-btn.next {
+      right: 16px;
+    }
+
+    .carousel-dots {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .carousel-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--border);
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      transition: all 0.25s;
+    }
+
+    .carousel-dot:hover {
+      background: var(--fg-dim);
+      transform: scale(1.2);
+    }
+
+    .carousel-dot.active {
+      background: var(--accent);
+      width: 28px;
+      border-radius: 5px;
+      box-shadow: 0 0 12px rgba(230, 33, 23, 0.6);
+    }
+
     /* ============ CHANGELOG ============ */
     .changelog-box {
       background: var(--bg-card);
@@ -737,6 +876,15 @@
       .faq-item.open .faq-a {
         padding: 0 20px 16px;
       }
+
+      .carousel-caption {
+        font-size: 13px;
+        padding: 14px 18px;
+      }
+
+      .carousel-dots {
+        gap: 8px;
+      }
     }
   </style>
 </head>
@@ -754,9 +902,9 @@
       <div class="nav-links">
         <a href="#versions">Версии</a>
         <a href="#features">Возможности</a>
+        <a href="#screenshots">Скриншоты</a>
         <a href="#changelog">Что нового</a>
         <a href="#faq">FAQ</a>
-        <a href="#install">Установка</a>
         <a href="https://github.com/Styrbik/youtube_downloader" class="btn-nav">GitHub</a>
       </div>
     </div>
@@ -883,6 +1031,42 @@
           <span class="feature-icon">&#128230;</span>
           <h4>Автообновление yt-dlp</h4>
           <p>Свежая версия yt-dlp скачивается с PyPI в фоне. Никаких ручных обновлений.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- СКРИНШОТЫ (КАРУСЕЛЬ) -->
+  <section class="section" id="screenshots">
+    <div class="container">
+      <h2 class="section-title animate">Как это выглядит</h2>
+      <p class="section-subtitle animate">Три простых шага — от ссылки до готового файла</p>
+
+      <div class="screenshots animate">
+        <div class="carousel" id="carousel">
+          <div class="carousel-track" id="carousel-track">
+            <div class="carousel-slide">
+              <img src="screenshots/1.png" alt="Вставь ссылку">
+              <div class="carousel-caption">1. Вставь ссылку</div>
+            </div>
+            <div class="carousel-slide">
+              <img src="screenshots/2.png" alt="Выбери качество">
+              <div class="carousel-caption">2. Выбери качество</div>
+            </div>
+            <div class="carousel-slide">
+              <img src="screenshots/3.png" alt="Скачивай">
+              <div class="carousel-caption">3. Скачивай</div>
+            </div>
+          </div>
+
+          <button class="carousel-btn prev" id="carousel-prev" aria-label="Назад">&#10094;</button>
+          <button class="carousel-btn next" id="carousel-next" aria-label="Вперёд">&#10095;</button>
+        </div>
+
+        <div class="carousel-dots" id="carousel-dots">
+          <button class="carousel-dot active" data-slide="0" aria-label="Слайд 1"></button>
+          <button class="carousel-dot" data-slide="1" aria-label="Слайд 2"></button>
+          <button class="carousel-dot" data-slide="2" aria-label="Слайд 3"></button>
         </div>
       </div>
     </div>
@@ -1180,6 +1364,99 @@
         badge.innerHTML = '&#9889; v0.5.0';
         console.warn('Не удалось загрузить версию с GitHub:', err);
       });
+
+    // ============================================================
+    // 5. Карусель скриншотов
+    // ============================================================
+    const track = document.getElementById('carousel-track');
+    const slides = document.querySelectorAll('.carousel-slide');
+    const dots = document.querySelectorAll('.carousel-dot');
+    const carousel = document.getElementById('carousel');
+    const btnPrev = document.getElementById('carousel-prev');
+    const btnNext = document.getElementById('carousel-next');
+
+    let currentSlide = 0;
+    let autoplayTimer = null;
+    let isPaused = false;
+    const AUTOPLAY_DELAY = 4000; // 4 секунды
+
+    function goToSlide(index) {
+      // зацикливаем
+      if (index < 0) {
+        index = slides.length - 1;
+      }
+      if (index >= slides.length) {
+        index = 0;
+      }
+
+      currentSlide = index;
+
+      // сдвигаем весь трек влево/вправо
+      const offset = -index * 100;
+      track.style.transform = `translateX(${offset}%)`;
+
+      // обновляем точки
+      dots.forEach((dot, i) => {
+        dot.classList.toggle('active', i === index);
+      });
+    }
+
+    function nextSlide() {
+      goToSlide(currentSlide + 1);
+    }
+
+    function prevSlide() {
+      goToSlide(currentSlide - 1);
+    }
+
+    function startAutoplay() {
+      stopAutoplay();
+      autoplayTimer = setInterval(() => {
+        if (!isPaused) {
+          nextSlide();
+        }
+      }, AUTOPLAY_DELAY);
+    }
+
+    function stopAutoplay() {
+      if (autoplayTimer) {
+        clearInterval(autoplayTimer);
+        autoplayTimer = null;
+      }
+    }
+
+    // клики по кнопкам
+    btnPrev.addEventListener('click', () => {
+      prevSlide();
+      startAutoplay(); // сброс таймера
+    });
+
+    btnNext.addEventListener('click', () => {
+      nextSlide();
+      startAutoplay();
+    });
+
+    // клики по точкам
+    dots.forEach(dot => {
+      dot.addEventListener('click', () => {
+        const index = parseInt(dot.dataset.slide, 10);
+        goToSlide(index);
+        startAutoplay();
+      });
+    });
+
+    // пауза при наведении
+    carousel.addEventListener('mouseenter', () => {
+      isPaused = true;
+    });
+
+    carousel.addEventListener('mouseleave', () => {
+      isPaused = false;
+    });
+
+    // старт
+    goToSlide(0);
+    startAutoplay();
   </script>
 
 </body>
