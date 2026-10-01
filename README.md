@@ -97,7 +97,7 @@
 
 ```bash
 git clone https://github.com/Styrbik/youtube_downloader.git
-cd youtube-downloader
+cd youtube_downloader
 pip install -r requirements.txt
 python downloader_launcher.py
 ```
