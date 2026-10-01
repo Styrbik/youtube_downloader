@@ -4,7 +4,7 @@
 
 **Only Tube, but fucking good**
 
-[![Version](https://img.shields.io/badge/version-0.4.2-red)](https://github.com/Styrbik/youtube-downloader)
+[![Version](https://img.shields.io/badge/version-0.5.0-red)](https://github.com/Styrbik/youtube-downloader)
 [![Python](https://img.shields.io/badge/python-3.12+-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
@@ -12,6 +12,32 @@
 С кастомным интерфейсом, темами, плеером и праздничными эффектами.
 
 </div>
+
+---
+
+## 🎨 Две версии
+
+Проект имеет **две версии** — Classic и Modern. **Выбор** — при **первом** **запуске** **через** **лаунчер**.
+
+### 🌙 Classic (Tkinter) — архив
+- **Финальная** **версия**: v0.4.2 «Holiday Edition»
+- **Больше** **не** **обновляется** — только **стабильность**
+- Всё, **что** **нужно** **для** **скачивания**, **уже** **есть**
+- **Для** **тех**, **кто** **хочет** **простоту** **и** **надёжность**
+
+### 🎨 Modern (PyQt6) — активно развивается
+- **Текущая** **версия**: v0.5.0 «Qt Edition»
+- **Современный** **интерфейс**, **плавные** **анимации**, **тени**
+- **Праздничные** **темы** **с** **падающими** **объектами**
+- **Все** **новые** **функции** — **здесь**
+- **Для** **тех**, **кто** **хочет** **красоту** **и** **новизну**
+
+### ⚠️ Что **пока** **НЕ** **доступно** **в** Modern
+- 🎵 **Плеер** — **будет** **в** v0.5.1
+- 🎨 **Генератор** **иконок** — **будет** **в** v0.5.1
+- 🍪 **Куки** — **не** **требуются**
+
+**Сменить** **версию** **можно** **в** **настройках** → «**🔄** **Сменить** **версию**».
 
 ---
 
@@ -28,7 +54,7 @@
   - 🌸 8 марта
 - Менеджер иконок + генератор с GUI
 
-### 🎵 Плеер
+### 🎵 Плеер (только в Classic)
 - Встроенный плеер для MP3
 - Пауза, стоп, прогресс-бар
 - Плейлист из истории
@@ -42,6 +68,7 @@
 - Авто-обрезка заливки YouTube Music (16:9 → 1:1)
 - Вшивание обложки в MP3
 - Метаданные (артист, альбом, год)
+- Обложки в проводнике Windows (через Icaros)
 
 ### ⚙️ Настройки
 - Отдельное окно с чекбоксами
@@ -62,11 +89,51 @@
 ### Windows (exe)
 1. Скачай последний релиз из [Releases](../../releases)
 2. Распакуй в любую папку
-3. Запусти `YouTubeDownloader.exe`
+3. Запусти `YouTubeDownloader.exe` — откроется **лаунчер**
+4. Выбери версию: **Classic** (Tkinter) или **Modern** (PyQt6)
+5. Поставь галочку «**Запомнить** **выбор**», **если** **не** **хочешь** **выбирать** **каждый** **раз**
 
 ### Из исходников
+
 ```bash
-git clone https://github.com/your-username/youtube-downloader.git
+git clone https://github.com/Styrbik/youtube-downloader.git
 cd youtube-downloader
 pip install -r requirements.txt
-python downloader_dark.py
+python downloader_launcher.py
+```
+
+**Или** **запусти** **конкретную** **версию**:
+- `python downloader_dark.py` — **Classic** (Tkinter)
+- `python downloader_qt.py` — **Modern** (PyQt6)
+
+---
+
+## 📋 Что нового
+
+Смотри [CHANGELOG.md](CHANGELOG.md)
+
+---
+
+## 🛠 Технологии
+
+- **Python 3.12+**
+- **Tkinter** — Classic-версия
+- **PyQt6** — Modern-версия
+- **yt-dlp** — скачивание
+- **Pillow** — обложки
+- **mutagen** — метаданные
+- **pygame-ce** — плеер (в Classic)
+
+---
+
+## 📜 Лицензия
+
+MIT — делай что хочешь.
+
+---
+
+<div align="center">
+
+**Сделано с ❤️ и 🎃**
+
+</div>
