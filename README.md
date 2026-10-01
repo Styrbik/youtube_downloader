@@ -96,7 +96,7 @@
 ### Из исходников
 
 ```bash
-git clone https://github.com/Styrbik/youtube-downloader.git
+git clone https://github.com/Styrbik/youtube_downloader.git
 cd youtube-downloader
 pip install -r requirements.txt
 python downloader_launcher.py
