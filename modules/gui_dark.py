@@ -9,6 +9,11 @@ import yt_dlp
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from modules import core, settings, visual, embed, icon_manager
+try:
+    from modules import tray as tray_module
+    HAS_TRAY = True
+except ImportError:
+    HAS_TRAY = False
 from modules.icons import icon_photo, load_thumbnail
 from modules.sounds import (
     click, radio, fetch, download_start, done, error,
@@ -19,7 +24,8 @@ from modules.themes import THEMES, get_theme
 from modules.splash import show_splash
 from config import (DOWNLOADS_DIR, ICON_PATH, CHANGELOG_PATH,
                     COVER_PATH, get_centered_geometry,
-                    APP_VERSION, APP_BUILD_NAME)
+                    APP_VERSION, APP_BUILD_NAME,
+                    get_active_icon_path)
 
 APP_TITLE = f"YouTube Downloader v{APP_VERSION}"
 ANIMATIONS_ENABLED = True
@@ -441,7 +447,7 @@ class TitleBarButton(tk.Label):
     def __init__(self, parent, text, command, hover_bg=TITLEBAR_HOVER,
                  hover_fg=None, **kwargs):
         super().__init__(parent, text=text, bg=TITLEBAR_BG, fg=FG,
-                         font=("Segoe UI", 11), padx=14, pady=6,
+                         font=("Segoe UI Symbol", 12), padx=14, pady=6,
                          cursor="hand2", **kwargs)
         self.default_bg = TITLEBAR_BG
         self.hover_bg = hover_bg
@@ -467,7 +473,37 @@ class TitleBarButton(tk.Label):
         self.command()
 
 
-class DownloaderApp:    
+class DownloaderApp:
+    def _minimize_to_tray(self):
+        """Сворачивает окно в трей."""
+        if self._tray_icon:
+            try:
+                self.root.withdraw()
+            except Exception:
+                pass
+        else:
+            # если трея нет — показываем тост
+            try:
+                show_toast(self.root, "📥 Трей недоступен", duration=2000)
+            except Exception:
+                pass
+    
+    def _create_tray(self):
+        """Создаёт иконку в трее."""
+        if not HAS_TRAY:
+            return
+        try:
+            icon_path = get_active_icon_path()
+            if not os.path.exists(icon_path):
+                icon_path = ICON_PATH
+            self._tray_icon = tray_module.create_tray_icon(
+                self.root,
+                icon_path,
+                on_quit=self._on_close,
+            )
+        except Exception as e:
+            print(f"⚠️ Не удалось создать трей: {e}")
+    
     def _start_falling_fx(self):
         """Запускает падающие объекты на правой колонке."""
         try:
@@ -973,7 +1009,24 @@ class DownloaderApp:
             if icon_manager.apply_icon(name):
                 self.settings["active_icon"] = name
                 settings.save(self.settings)
-                show_toast(self.root, f"🎨 Иконка «{name}» применена\nПерезапусти для обновления")
+
+                # 🎨 применяем иконку СРАЗУ во все места
+                new_icon = get_active_icon_path()
+                if os.path.exists(new_icon):
+                    try:
+                        self.root.iconbitmap(new_icon)
+                        self._active_icon_path = new_icon
+                    except Exception:
+                        pass
+
+                # 🎨 панель задач
+                self._register_in_taskbar()
+
+                # 🎨 трей
+                if getattr(self, "_tray_icon", None):
+                    tray_module.update_tray_icon(self._tray_icon, new_icon)
+
+                show_toast(self.root, f"🎨 Иконка «{name}» применена")
                 refresh_list()
 
         def delete_selected():
@@ -1152,6 +1205,9 @@ class DownloaderApp:
                 visual.make_cover()
             except Exception:
                 pass
+        # 🎵 трей
+        self._tray_icon = None
+        self._create_tray()
 
         self.url_var = tk.StringVar()
         self.current_url = ""
@@ -1332,13 +1388,16 @@ class DownloaderApp:
                  font=("Segoe UI", 12)).pack(side="left", padx=(10, 4), pady=4)
         tk.Label(self.tb_left, text="YouTube Downloader", bg=TITLEBAR_BG, fg=FG,
                  font=("Segoe UI", 10, "bold")).pack(side="left", pady=4)
-
+                 
         btn_close = TitleBarButton(self.titlebar, "✕", self._on_close,
                                      hover_bg=TITLEBAR_CLOSE, hover_fg="white")
         btn_close.pack(side="right", fill="y")
 
-        btn_max = TitleBarButton(self.titlebar, "▢", self._toggle_maximize)
+        btn_max = TitleBarButton(self.titlebar, "◻", self._toggle_maximize)
         btn_max.pack(side="right", fill="y")
+
+        btn_min = TitleBarButton(self.titlebar, "─", self._minimize_to_tray)
+        btn_min.pack(side="right", fill="y")
 
         for w in (self.titlebar, self.tb_left):
             w.bind("<ButtonPress-1>", self._start_drag)
@@ -1944,15 +2003,53 @@ class DownloaderApp:
                 default = DEFAULTS.get(key, True)
                 var.set(default)
 
+        def switch_version():
+            from tkinter import messagebox
+            if not messagebox.askyesno(
+                "Сменить версию",
+                "Приложение закроется и откроется лаунчер выбора версии.\n"
+                "Продолжить?"
+            ):
+                return
+            win.destroy()
+            self._reset_launcher()
+
+        HoverButton(btn_row, "🔄 Сменить версию", switch_version,
+                    bg=BG_CARD, hover_bg=BORDER_HOVER, fg=FG,
+                    font=("Segoe UI", 10), padx=14, pady=8).pack(side="left")
+
         HoverButton(btn_row, "🎨 Иконка", self.on_show_icon_manager,
                     bg=BG_CARD, hover_bg=BORDER_HOVER, fg=FG,
                     font=("Segoe UI", 10), padx=14, pady=8).pack(side="left")
+
         HoverButton(btn_row, "Сбросить", reset_defaults,
                     bg=BG_CARD, hover_bg=BORDER_HOVER, fg=FG,
                     font=("Segoe UI", 10), padx=14, pady=8).pack(side="left", padx=(8, 0))
+
         HoverButton(btn_row, "Сохранить", save_and_close,
                     bg=ACCENT, hover_bg=ACCENT_HOVER, fg="white",
                     font=("Segoe UI", 10, "bold"), padx=20, pady=8).pack(side="right")
+                    
+    def _reset_launcher(self):
+        """Сбрасывает preferred_gui и перезапускает лаунчер."""
+        try:
+            from config import set_preferred_gui
+            set_preferred_gui(None)
+        except Exception as e:
+            print(f"⚠️ Не удалось сбросить preferred_gui: {e}")
+
+        import subprocess
+        launcher_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "downloader_launcher.py"
+        )
+        try:
+            subprocess.Popen([sys.executable, launcher_path])
+        except Exception as e:
+            print(f"⚠️ Не удалось запустить лаунчер: {e}")
+            return
+
+        self.root.destroy()
 
     def _apply_settings_live(self):
         """Применяет настройки без перезапуска (где возможно)."""
@@ -2209,6 +2306,14 @@ class DownloaderApp:
             shutdown()
         except Exception:
             pass
+
+        # останавливаем трей
+        if getattr(self, "_tray_icon", None):
+            try:
+                self._tray_icon.stop()
+            except Exception:
+                pass
+
         self.root.destroy()
 
     def on_fetch(self):

@@ -1,0 +1,188 @@
+"""
+Экспорт куки из браузера в cookies.txt.
+Поддерживает Chrome, Edge, Firefox, Brave.
+"""
+
+import os
+import time
+
+
+COOKIES_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "cookies.txt"
+)
+
+
+def cookies_file_exists():
+    """Проверяет, есть ли cookies.txt с содержимым."""
+    return os.path.exists(COOKIES_FILE) and os.path.getsize(COOKIES_FILE) > 50
+
+
+def get_browser_path(browser):
+    """Возвращает путь к браузеру или None."""
+    if os.name != "nt":
+        return None
+    paths = {
+        "chrome": [
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            os.path.expanduser(r"~\AppData\Local\Google\Chrome\Application\chrome.exe"),
+        ],
+        "edge": [
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+        ],
+        "brave": [
+            r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
+            r"C:\Program Files (x86)\BraveSoftware\Brave-Browser\Application\brave.exe",
+        ],
+        "firefox": [
+            r"C:\Program Files\Mozilla Firefox\firefox.exe",
+            r"C:\Program Files (x86)\Mozilla Firefox\firefox.exe",
+        ],
+    }
+    for p in paths.get(browser, []):
+        if os.path.exists(p):
+            return p
+    return None
+
+
+def get_installed_browsers():
+    """Возвращает список установленных браузеров."""
+    result = []
+    for b in ("firefox", "chrome", "edge", "brave"):
+        if get_browser_path(b):
+            result.append(b)
+    return result
+
+
+def export_cookies(browser="firefox", progress_callback=None):
+    """
+    Открывает браузер, заходит на YouTube, экспортирует куки в cookies.txt.
+    Возвращает путь к файлу или None.
+    """
+    try:
+        from selenium import webdriver
+        from selenium.webdriver.chrome.service import Service as ChromeService
+        from selenium.webdriver.firefox.service import Service as FirefoxService
+        from selenium.webdriver.edge.service import Service as EdgeService
+        from webdriver_manager.chrome import ChromeDriverManager
+        from webdriver_manager.firefox import GeckoDriverManager
+        from webdriver_manager.microsoft import EdgeChromiumDriverManager
+    except ImportError as e:
+        print(f"⚠️ Установи selenium и webdriver-manager: {e}")
+        return None
+
+    driver = None
+    try:
+        if progress_callback:
+            progress_callback(f"🌐 Открываю {browser}...")
+
+        if browser == "firefox":
+            from selenium.webdriver.firefox.options import Options
+            opts = Options()
+            # используем профиль пользователя — чтобы куки уже были
+            try:
+                from selenium.webdriver.firefox.firefox_profile import FirefoxProfile
+                opts.profile = FirefoxProfile()
+            except Exception:
+                pass
+            driver = webdriver.Firefox(
+                service=FirefoxService(GeckoDriverManager().install()),
+                options=opts,
+            )
+        elif browser == "chrome":
+            from selenium.webdriver.chrome.options import Options
+            opts = Options()
+            # используем НАСТОЯЩИЙ профиль пользователя
+            user_data = os.path.join(
+                os.environ.get("LOCALAPPDATA", ""),
+                "Google", "Chrome", "User Data"
+            )
+            if os.path.isdir(user_data):
+                opts.add_argument(f"--user-data-dir={user_data}")
+                opts.add_argument("--profile-directory=Default")
+            opts.add_argument("--disable-blink-features=AutomationControlled")
+            opts.add_experimental_option("excludeSwitches", ["enable-automation"])
+            opts.add_experimental_option("useAutomationExtension", False)
+            driver = webdriver.Chrome(options=opts)
+        elif browser == "brave":
+            from selenium.webdriver.chrome.options import Options
+            opts = Options()
+            bp = get_browser_path("brave")
+            if bp:
+                opts.binary_location = bp
+            opts.add_argument("--disable-blink-features=AutomationControlled")
+           # driver = webdriver.Chrome(
+               # service=ChromeService(ChromeDriverManager().install()),
+                #options=opts,
+            #driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+                #"source": """
+                    #Object.defineProperty(navigator, 'webdriver', {
+                        #get: () => undefined
+                  #  })
+                #"""
+            #})
+        elif browser == "edge":
+            from selenium.webdriver.edge.options import Options
+            opts = Options()
+            opts.add_argument("--disable-blink-features=AutomationControlled")
+            driver = webdriver.Edge(
+                service=EdgeService(EdgeChromiumDriverManager().install()),
+                options=opts,
+            )
+        else:
+            print(f"⚠️ Неизвестный браузер: {browser}")
+            return None
+
+        if progress_callback:
+            progress_callback("🌐 Открываю YouTube...")
+
+        driver.get("https://www.youtube.com")
+        time.sleep(3)
+
+        if progress_callback:
+            progress_callback("⏳ Залогинься в YouTube (если нужно) и закрой окно браузера.")
+
+        # ждём закрытия окна
+        while True:
+            try:
+                _ = driver.title
+                time.sleep(2)
+            except Exception:
+                break
+
+        cookies = driver.get_cookies()
+
+        if not cookies:
+            print("⚠️ Куки не получены")
+            return None
+
+        # сохраняем в Netscape формате
+        with open(COOKIES_FILE, "w", encoding="utf-8") as f:
+            f.write("# Netscape HTTP Cookie File\n")
+            f.write("# This file was generated by YouTube Downloader\n\n")
+            for c in cookies:
+                domain = c.get("domain", "")
+                if not domain.startswith("."):
+                    domain = "." + domain
+                flag = "TRUE" if domain.startswith(".") else "FALSE"
+                path = c.get("path", "/")
+                secure = "TRUE" if c.get("secure") else "FALSE"
+                expires = c.get("expiry", 0)
+                name = c.get("name", "")
+                value = c.get("value", "")
+                f.write(f"{domain}\t{flag}\t{path}\t{secure}\t{expires}\t{name}\t{value}\n")
+
+        print(f"✅ Куки сохранены: {COOKIES_FILE}")
+        return COOKIES_FILE
+
+    except Exception as e:
+        print(f"⚠️ Ошибка экспорта куки: {e}")
+        return None
+    finally:
+        if driver:
+            try:
+                driver.quit()
+            except Exception:
+                pass

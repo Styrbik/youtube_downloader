@@ -9,6 +9,18 @@ PROGRESS_CALLBACK = None
 # Флаг отмены загрузки
 CANCEL_FLAG = False
 
+COOKIES_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "cookies.txt"
+)
+
+
+def _get_cookie_opts():
+    if os.path.exists(COOKIES_FILE):
+        print(f"🍪 Куки из файла: {COOKIES_FILE}")
+        return {'cookiefile': COOKIES_FILE}
+    return {}
+
 
 def cancel_download():
     """Устанавливает флаг отмены. Следующий progress_hook прервёт загрузку."""
@@ -62,6 +74,7 @@ def base_opts(output_dir):
         'progress_hooks': [_make_hook()],
         'postprocessor_hooks': [_make_postprocessor_hook()],
     }
+    opts.update(_get_cookie_opts())
     if os.path.exists(FFMPEG_PATH):
         opts['ffmpeg_location'] = FFMPEG_PATH
     return opts
@@ -69,10 +82,12 @@ def base_opts(output_dir):
 
 def get_formats(url):
     """Получает список форматов."""
-    with yt_dlp.YoutubeDL({
+    opts = {
         'quiet': True,
         'no_warnings': True,
-    }) as ydl:
+    }
+    opts.update(_get_cookie_opts())
+    with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
         title = info.get('title', 'video')
 

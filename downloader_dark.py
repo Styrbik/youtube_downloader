@@ -1,14 +1,17 @@
-import sys
+"""
+Точка входа для Tkinter-версии YouTube Downloader.
+Запуск: python downloader_dark.py
+"""
+
 import os
+import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# подключаем кэш yt-dlp ДО импорта gui_dark
-try:
-    from modules import updater
-    updater.load_cached()
-except Exception as e:
-    print(f"⚠️ Не удалось загрузить кэш yt-dlp: {e}")
+from modules import bootstrap
+
+# AppUserModelID — для правильной иконки в панели задач
+bootstrap.setup("Styrbik.YouTubeDownloader.Tk.0.4.2")
 
 from modules import gui_dark
 

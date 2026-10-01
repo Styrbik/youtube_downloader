@@ -1,0 +1,2367 @@
+"""
+YouTube Downloader — PyQt6 edition.
+С glow-эффектом, тенями, анимациями.
+"""
+import ssl
+ssl._create_default_https_context = ssl._create_unverified_context
+import sys
+import os
+import re
+import threading
+import webbrowser
+from datetime import datetime
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import yt_dlp
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QLabel, QLineEdit, QPushButton, QFrame, QScrollArea, QSizePolicy,
+    QGraphicsDropShadowEffect, QGraphicsOpacityEffect, QDialog,
+    QCheckBox, QRadioButton, QButtonGroup, QListWidget, QListWidgetItem,
+    QProgressBar, QMessageBox, QFileDialog, QInputDialog, QMenu,
+    QSystemTrayIcon, QTextEdit, QGridLayout, QComboBox,
+)
+from PyQt6.QtCore import (
+    Qt, QTimer, QPropertyAnimation, QEasingCurve, QSize, QPoint,
+    QParallelAnimationGroup, QSequentialAnimationGroup, pyqtSignal, QRect,
+)
+from PyQt6.QtGui import (
+    QIcon, QPixmap, QColor, QPainter, QAction, QFont,
+    QLinearGradient, QBrush, QPen, QFontDatabase, QCursor,
+)
+
+from modules import core, settings, visual, embed, icon_manager
+try:
+    from modules import tray as tray_module
+    HAS_TRAY = True
+except ImportError:
+    HAS_TRAY = False
+from modules.icons import load_thumbnail, make_icon
+from modules.themes import THEMES, get_theme
+from config import (
+    DOWNLOADS_DIR, ICON_PATH, CHANGELOG_PATH, COVER_PATH,
+    APP_VERSION, APP_BUILD_NAME, get_active_icon_path,
+)
+
+APP_TITLE = f"YouTube Downloader v{APP_VERSION}"
+
+# ============================================================
+#                    ЦВЕТА
+# ============================================================
+BG = "#1e1e1e"
+BG_CARD = "#2a2a2a"
+BG_INPUT = "#333333"
+FG = "#e0e0e0"
+FG_DIM = "#888888"
+ACCENT = "#e62117"
+ACCENT_HOVER = "#ff3b30"
+ACCENT_PRESS = "#b71c1c"
+BORDER = "#3a3a3a"
+TITLEBAR_BG = "#151515"
+
+
+def _detect_platform(url):
+    u = url.lower()
+    if "youtube.com" in u or "youtu.be" in u or "music.youtube" in u:
+        return "YouTube"
+    if "soundcloud.com" in u:
+        return "SoundCloud"
+    if "tiktok.com" in u:
+        return "TikTok"
+    if "rutube.ru" in u:
+        return "Rutube"
+    if "vk.com" in u or "vkvideo" in u:
+        return "VK"
+    if "twitter.com" in u or "x.com" in u:
+        return "Twitter/X"
+    if "instagram.com" in u:
+        return "Instagram"
+    if "vimeo.com" in u:
+        return "Vimeo"
+    return "сайт"
+
+
+def _apply_theme(theme_name):
+    global BG, BG_CARD, BG_INPUT, FG, FG_DIM, ACCENT, ACCENT_HOVER, ACCENT_PRESS, BORDER, TITLEBAR_BG
+    t = get_theme(theme_name)
+    BG = t["BG"]
+    BG_CARD = t["BG_CARD"]
+    BG_INPUT = t["BG_INPUT"]
+    FG = t["FG"]
+    FG_DIM = t["FG_DIM"]
+    ACCENT = t["ACCENT"]
+    ACCENT_HOVER = t["ACCENT_HOVER"]
+    ACCENT_PRESS = t["ACCENT_PRESS"]
+    BORDER = t["BORDER"]
+
+    def _darker(hex_color, factor=0.7):
+        h = hex_color.lstrip("#")
+        r, g, b = (int(h[i:i+2], 16) for i in (0, 2, 4))
+        return f"#{int(r*factor):02x}{int(g*factor):02x}{int(b*factor):02x}"
+
+    TITLEBAR_BG = _darker(BG, 0.7)
+
+
+def build_qss():
+    return f"""
+        QWidget {{
+            background-color: {BG};
+            color: {FG};
+            font-family: "Segoe UI", "Segoe UI Emoji";
+        }}
+        QLabel {{ background: transparent; }}
+        QFrame#card {{
+            background-color: {BG_CARD};
+            border: 1px solid {BORDER};
+            border-radius: 12px;
+        }}
+        QFrame#card:hover {{ border: 1px solid {ACCENT}; }}
+        QLineEdit {{
+            background-color: {BG_INPUT};
+            color: {FG};
+            border: 1px solid {BORDER};
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 13px;
+            selection-background-color: {ACCENT};
+        }}
+        QLineEdit:focus {{ border: 1px solid {ACCENT}; }}
+        QPushButton {{
+            background-color: {BG_CARD};
+            color: {FG};
+            border: 1px solid {BORDER};
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 500;
+        }}
+        QPushButton:hover {{
+            background-color: {BORDER};
+            border: 1px solid {ACCENT};
+        }}
+        QPushButton#primary {{
+            background-color: {ACCENT};
+            color: white;
+            border: none;
+            font-weight: bold;
+        }}
+        QPushButton#primary:hover {{ background-color: {ACCENT_HOVER}; }}
+        QPushButton#primary:pressed {{ background-color: {ACCENT_PRESS}; }}
+        QPushButton#glow_btn {{
+            background-color: {BG_CARD};
+            color: {FG};
+            border: 1px solid {BORDER};
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 500;
+        }}
+        QPushButton#glow_btn:hover {{ border: 1px solid {ACCENT}; }}
+        QPushButton#glow_btn_primary {{
+            background-color: {ACCENT};
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: bold;
+        }}
+        QPushButton#glow_btn_primary:hover {{ background-color: {ACCENT_HOVER}; }}
+        QPushButton#titlebtn {{
+            background-color: {TITLEBAR_BG};
+            border: none;
+            border-radius: 0;
+            padding: 6px 14px;
+            font-size: 14px;
+            font-family: "Segoe UI Symbol";
+        }}
+        QPushButton#titlebtn:hover {{ background-color: {BG_CARD}; }}
+        QPushButton#closebtn {{
+            background-color: {TITLEBAR_BG};
+            border: none;
+            border-radius: 0;
+            padding: 6px 14px;
+            font-size: 14px;
+            font-family: "Segoe UI Symbol";
+        }}
+        QPushButton#closebtn:hover {{ background-color: #c0392b; color: white; }}
+        QListWidget {{
+            background-color: {BG_INPUT};
+            color: {FG};
+            border: 1px solid {BORDER};
+            border-radius: 8px;
+            padding: 4px;
+        }}
+        QListWidget::item {{ padding: 6px 8px; border-radius: 4px; }}
+        QListWidget::item:hover {{ background-color: {BORDER}; }}
+        QListWidget::item:selected {{ background-color: {ACCENT}; color: white; }}
+        QProgressBar {{
+            background-color: {BG_CARD};
+            border: none;
+            border-radius: 6px;
+            height: 12px;
+            text-align: center;
+        }}
+        QProgressBar::chunk {{
+            border-radius: 6px;
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 {ACCENT}, stop:1 {ACCENT_HOVER});
+        }}
+        QCheckBox, QRadioButton {{ spacing: 8px; padding: 4px; }}
+        QCheckBox::indicator, QRadioButton::indicator {{ width: 16px; height: 16px; }}
+        QCheckBox::indicator:unchecked {{
+            background-color: {BG_INPUT}; border: 1px solid {BORDER}; border-radius: 3px;
+        }}
+        QCheckBox::indicator:checked {{
+            background-color: {ACCENT}; border: 1px solid {ACCENT}; border-radius: 3px;
+        }}
+        QRadioButton::indicator:unchecked {{
+            background-color: {BG_INPUT}; border: 1px solid {BORDER}; border-radius: 8px;
+        }}
+        QRadioButton::indicator:checked {{
+            background-color: {ACCENT}; border: 1px solid {ACCENT}; border-radius: 8px;
+        }}
+        QScrollArea {{ background-color: {BG}; border: none; }}
+        QScrollBar:vertical {{
+            background-color: {BG}; width: 10px; border: none;
+        }}
+        QScrollBar::handle:vertical {{
+            background-color: {BORDER}; border-radius: 5px; min-height: 20px;
+        }}
+        QScrollBar::handle:vertical:hover {{ background-color: {ACCENT}; }}
+        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+            background: none; height: 0;
+        }}
+        QTextEdit {{
+            background-color: {BG_INPUT}; color: {FG};
+            border: 1px solid {BORDER}; border-radius: 8px; padding: 8px;
+        }}
+    """
+
+
+# ============================================================
+#                    АНИМАЦИИ
+# ============================================================
+
+def add_shadow(widget, color="#000000", blur=20, offset=(0, 4), opacity=120):
+    effect = QGraphicsDropShadowEffect(widget)
+    effect.setBlurRadius(blur)
+    effect.setColor(QColor(color))
+    effect.setOffset(offset[0], offset[1])
+    try:
+        effect.setOpacity(opacity / 255)
+    except Exception:
+        pass
+    widget.setGraphicsEffect(effect)
+    return effect
+
+
+def animate_slide_in(widget, offset_y=20, duration=400):
+    effect = QGraphicsOpacityEffect(widget)
+    widget.setGraphicsEffect(effect)
+    anim = QPropertyAnimation(effect, b"opacity")
+    anim.setDuration(duration)
+    anim.setStartValue(0.0)
+    anim.setEndValue(1.0)
+    anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+    anim.start()
+    widget._opacity_anim = anim
+    return anim
+
+
+# ============================================================
+#                    GLOW-КНОПКА
+# ============================================================
+class GlowButton(QPushButton):
+    """Кнопка с glow-эффектом от курсора (как Focus Highlight в Win10)."""
+    def __init__(self, text, parent=None, is_primary=False, **kwargs):
+        super().__init__(text, parent)
+        self.is_primary = is_primary
+        self._glow = QGraphicsDropShadowEffect(self)
+        self._glow.setOffset(0, 0)
+        self._glow.setBlurRadius(0)
+        self._glow.setColor(QColor(ACCENT))
+        self._glow.setEnabled(False)
+        self.setGraphicsEffect(self._glow)
+
+        self._base_blur = 24 if is_primary else 16
+        self._max_blur = 45 if is_primary else 30
+        self._target_blur = 0
+        self._anim = QPropertyAnimation(self._glow, b"blurRadius")
+        self._anim.setDuration(180)
+        self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+    def set_glow(self, value):
+        """value: 0.0 — 1.0."""
+        target = int(self._base_blur + (self._max_blur - self._base_blur) * value)
+        if target == self._target_blur:
+            return
+        self._target_blur = target
+        if target > 0:
+            self._glow.setEnabled(True)
+            self._glow.setColor(QColor(ACCENT))
+        else:
+            self._glow.setEnabled(False)
+        self._anim.stop()
+        self._anim.setStartValue(self._glow.blurRadius())
+        self._anim.setEndValue(target)
+        self._anim.start()
+        
+# ============================================================
+#                    КАРТОЧКА С ТЕНЬЮ
+# ============================================================
+class Card(QFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("card")
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self._layout = QVBoxLayout(self)
+        self._layout.setContentsMargins(14, 12, 14, 12)
+        self._layout.setSpacing(8)
+        # тень на карточке
+        self._shadow = add_shadow(self, color="#000000", blur=20, offset=(0, 4), opacity=100)
+
+    def add(self, w):
+        self._layout.addWidget(w)
+        return w
+
+    def add_layout(self, l):
+        self._layout.addLayout(l)
+        return l
+
+
+# ============================================================
+#                    КНОПКА КАЧЕСТВА
+# ============================================================
+class QualityButton(QPushButton):
+    def __init__(self, text, value, group):
+        super().__init__(text)
+        self.value = value
+        self.group = group
+        self.selected = False
+        self.setCheckable(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setMinimumHeight(32)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.clicked.connect(self._on_click)
+        self._refresh_style()
+
+    def _on_click(self):
+        self.group.select(self.value)
+
+    def _refresh_style(self):
+        if self.selected:
+            self.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {ACCENT};
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    padding: 6px 10px;
+                    font-family: "Consolas", monospace;
+                    font-size: 11px;
+                    font-weight: bold;
+                }}
+            """)
+        else:
+            self.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {BG_CARD};
+                    color: {FG};
+                    border: 1px solid {BORDER};
+                    border-radius: 8px;
+                    padding: 6px 10px;
+                    font-family: "Consolas", monospace;
+                    font-size: 11px;
+                }}
+                QPushButton:hover {{
+                    border: 1px solid {ACCENT};
+                    background-color: {BG_INPUT};
+                }}
+            """)
+
+    def set_selected(self, selected):
+        self.selected = selected
+        self.setChecked(selected)
+        self._refresh_style()
+
+
+class QualityGroup(QWidget):
+    def __init__(self, on_change=None, columns=3, parent=None):
+        super().__init__(parent)
+        self.on_change = on_change
+        self.columns = columns
+        self.buttons = {}
+        self.selected = None
+        self._layout = QGridLayout(self)
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self._layout.setSpacing(6)
+
+    def set_items(self, items):
+        while self._layout.count():
+            child = self._layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+        self.buttons.clear()
+        self.selected = None
+
+        for idx, (label, value) in enumerate(items):
+            row = idx // self.columns
+            col = idx % self.columns
+            btn = QualityButton(label, value, self)
+            self._layout.addWidget(btn, row, col)
+            self.buttons[value] = btn
+
+        if items:
+            self.select(items[0][1], silent=True)
+
+    def select(self, value, silent=False):
+        if value not in self.buttons:
+            return
+        for v, btn in self.buttons.items():
+            btn.set_selected(v == value)
+        self.selected = value
+        if self.on_change and not silent:
+            self.on_change(value)
+
+    def clear(self):
+        self.set_items([])
+
+
+# ============================================================
+#                    ГЛАВНОЕ ОКНО
+# ============================================================
+class DownloaderApp(QMainWindow):
+    sig_populate = pyqtSignal(str, str)
+    sig_error = pyqtSignal(str)
+    sig_progress = pyqtSignal(float)
+    sig_info = pyqtSignal(float, object)
+    sig_thumb = pyqtSignal(bytes)
+
+    def __init__(self):
+        super().__init__()
+        self.settings = settings.load()
+        self.sig_populate.connect(self._populate_formats)
+        self.sig_error.connect(self._fetch_error)
+        self.sig_progress.connect(self._set_progress)
+        self.sig_info.connect(self._update_info)
+        self.sig_thumb.connect(self._set_thumb)
+        self._fetch_in_progress = False
+        self._glow_buttons = []
+
+        today = datetime.now()
+        self._holiday_mode = False
+        self._holiday_theme = None
+        self._holiday_greeting = None
+        self._real_theme = self.settings.get("theme", "dark")
+        self._falling_fx = None
+
+        if today.month == 10 and today.day == 31:
+            self._holiday_mode = True
+            self._holiday_theme = "halloween"
+            self._holiday_greeting = "🎃 С ХЭЛЛОУИНОМ!\nНе забудь про конфеты!"
+        elif today.month == 12 and today.day == 21:
+            self._holiday_mode = True
+            self._holiday_theme = "doomsday"
+            self._holiday_greeting = "💀 21 ДЕКАБРЯ — КОНЕЦ СВЕТА!\nКачай, пока интернет не отключили!"
+        elif today.month == 12 and today.day == 31:
+            self._holiday_mode = True
+            self._holiday_theme = "newyear"
+            self._holiday_greeting = "🎄 С НОВЫМ ГОДОМ!\nПусть качается всё, что хочется!"
+        elif today.month == 3 and today.day == 8:
+            self._holiday_mode = True
+            self._holiday_theme = "march8"
+            self._holiday_greeting = "🌸 С 8 МАРТА!\nСкачай что-нибудь для мамы!"
+
+        theme_to_apply = self._holiday_theme if self._holiday_mode else self._real_theme
+        _apply_theme(theme_to_apply)
+
+        self.setWindowTitle(APP_TITLE)
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+
+        saved_geom = self.settings.get("window_geometry", "")
+        w, h = self._pick_size(saved_geom)
+        self.resize(w, h)
+        self.setMinimumSize(700, 500)
+
+        active_icon = get_active_icon_path()
+        if os.path.exists(active_icon):
+            self.setWindowIcon(QIcon(active_icon))
+        self._active_icon_path = active_icon
+
+        self.current_url = ""
+        self.formats = []
+        self.title_text = ""
+        self.meta = {}
+        self.selected_format = None
+        self.downloading = False
+        self._silent = False
+        self._rename_flag = False
+        self._last_downloaded_file = None
+        self._drag_pos = None
+        self._is_maximized = False
+        self._thumb_pixmap = None
+        self._tray_icon = None
+
+        self._build_ui()
+        self._apply_qss()
+        self._on_mode_change()
+        self._create_tray()
+
+        if self._holiday_mode and self._holiday_greeting:
+            QTimer.singleShot(1500, self._show_holiday_toast)
+
+        if self._holiday_mode:
+            QTimer.singleShot(300, self._start_falling_fx_qt)
+
+        if self.settings.get("auto_update_ytdlp", True):
+            threading.Thread(target=self._check_ytdlp_update, daemon=True).start()
+
+        QTimer.singleShot(100, self._cascade_animate)
+        # QTimer.singleShot(800, self._check_cookies_on_start)
+
+        # таймер для обновления glow от курсора
+        self.setMouseTracking(True)
+        self.centralWidget().setMouseTracking(True)
+        self._glow_timer = QTimer(self)
+        self._glow_timer.setInterval(30)
+        self._glow_timer.timeout.connect(self._update_glow)
+        self._glow_timer.start()
+
+    def _check_cookies_on_start(self):
+        # Куки отключены — модуль переименован
+        pass
+
+    # ---------- glow ----------
+    def _update_glow(self):
+        """Обновляет свечение кнопок в зависимости от позиции курсора."""
+        if not self._glow_buttons:
+            return
+        if not self.isActiveWindow():
+            for btn in self._glow_buttons:
+                btn.set_glow(0.0)
+            return
+
+        pos = self.mapFromGlobal(QCursor.pos())
+
+        for btn in self._glow_buttons:
+            btn_pos = btn.mapTo(self, QPoint(0, 0))
+            btn_rect = QRect(btn_pos, btn.size())
+
+            dx = max(btn_rect.left() - pos.x(), 0, pos.x() - btn_rect.right())
+            dy = max(btn_rect.top() - pos.y(), 0, pos.y() - btn_rect.bottom())
+            dist = (dx*dx + dy*dy) ** 0.5
+
+            influence_radius = 140
+            if dist > influence_radius:
+                intensity = 0.0
+            else:
+                intensity = 1.0 - (dist / influence_radius)
+                intensity = intensity ** 2
+
+            btn.set_glow(intensity)
+
+    def _pick_size(self, saved_geom):
+        default_w, default_h = 900, 640
+        w, h = default_w, default_h
+        if saved_geom:
+            try:
+                size_part = saved_geom.split("+")[0]
+                sw_, sh_ = map(int, size_part.split("x"))
+                if sw_ >= 400 and sh_ >= 400:
+                    w, h = sw_, sh_
+            except Exception:
+                pass
+
+        screen = QApplication.primaryScreen().availableGeometry()
+        w = min(w, screen.width() - 20)
+        h = min(h, screen.height() - 20)
+        self.move(
+            screen.x() + (screen.width() - w) // 2,
+            screen.y() + (screen.height() - h) // 2,
+        )
+        return w, h
+
+    def _apply_qss(self):
+        self.setStyleSheet(build_qss())
+
+    def _cascade_animate(self):
+        for i, card in enumerate((
+            getattr(self, "url_card", None),
+            getattr(self, "dir_card", None),
+            getattr(self, "opts_card", None),
+            getattr(self, "mode_card", None),
+            getattr(self, "info_card", None),
+            getattr(self, "fmt_card", None),
+        )):
+            if card:
+                QTimer.singleShot(i * 60, lambda c=card: animate_slide_in(c, duration=400))
+                
+    # --------------------------------------------------------
+    #                    UI
+    # --------------------------------------------------------
+    def _build_ui(self):
+        central = QWidget()
+        self.setCentralWidget(central)
+        root_layout = QVBoxLayout(central)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+
+        # ----- Titlebar -----
+        self.titlebar = QWidget()
+        self.titlebar.setFixedHeight(36)
+        self.titlebar.setStyleSheet(f"background-color: {TITLEBAR_BG};")
+        tb_layout = QHBoxLayout(self.titlebar)
+        tb_layout.setContentsMargins(10, 0, 0, 0)
+        tb_layout.setSpacing(4)
+
+        tb_icon = QLabel("🎬")
+        tb_icon.setStyleSheet(f"color: {ACCENT}; font-size: 14px; background: transparent;")
+        tb_layout.addWidget(tb_icon)
+
+        tb_title = QLabel("YouTube Downloader")
+        tb_title.setStyleSheet(f"color: {FG}; font-size: 12px; font-weight: bold; background: transparent;")
+        tb_layout.addWidget(tb_title)
+        tb_layout.addStretch()
+
+        def _menu_btn(text, slot, tooltip=""):
+            b = QPushButton(text)
+            b.setObjectName("titlebtn")
+            b.setFixedHeight(28)
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            b.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {TITLEBAR_BG};
+                    color: {FG};
+                    border: none;
+                    border-radius: 6px;
+                    padding: 4px 10px;
+                    font-size: 11px;
+                }}
+                QPushButton:hover {{
+                    background-color: {BG_CARD};
+                    color: {ACCENT};
+                }}
+            """)
+            if tooltip:
+                b.setToolTip(tooltip)
+            b.clicked.connect(slot)
+            return b
+
+        tb_layout.addWidget(_menu_btn("📜 История", self._open_history, "История скачанного"))
+        tb_layout.addWidget(_menu_btn("🎨 Тема", self._change_theme, "Сменить тему"))
+        tb_layout.addWidget(_menu_btn("🎯 Профили", self._open_profiles, "Профили настроек"))
+        tb_layout.addWidget(_menu_btn("⚙️ Настройки", self._open_settings, "Настройки"))
+        tb_layout.addWidget(_menu_btn("🎵 Плеер", self._open_player, "Встроенный плеер"))
+        tb_layout.addWidget(_menu_btn("📋 Что нового", self._open_changelog, "Changelog"))
+
+        spacer = QWidget()
+        spacer.setFixedWidth(10)
+        spacer.setStyleSheet("background: transparent;")
+        tb_layout.addWidget(spacer)
+
+        self.btn_min = QPushButton("─")
+        self.btn_min.setObjectName("titlebtn")
+        self.btn_min.setFixedSize(40, 36)
+        self.btn_min.clicked.connect(self._minimize_to_tray)
+        tb_layout.addWidget(self.btn_min)
+
+        self.btn_max = QPushButton("◻")
+        self.btn_max.setObjectName("titlebtn")
+        self.btn_max.setFixedSize(40, 36)
+        self.btn_max.clicked.connect(self._toggle_maximize)
+        tb_layout.addWidget(self.btn_max)
+
+        self.btn_close = QPushButton("✕")
+        self.btn_close.setObjectName("closebtn")
+        self.btn_close.setFixedSize(40, 36)
+        self.btn_close.clicked.connect(self._on_close)
+        tb_layout.addWidget(self.btn_close)
+
+        self.titlebar.mousePressEvent = self._titlebar_press
+        self.titlebar.mouseMoveEvent = self._titlebar_move
+        self.titlebar.mouseDoubleClickEvent = lambda e: self._toggle_maximize()
+
+        root_layout.addWidget(self.titlebar)
+
+        # ----- Градиентная чёлка -----
+        self.cheek = QWidget()
+        self.cheek.setFixedHeight(3)
+        self.cheek.paintEvent = self._paint_cheek
+        root_layout.addWidget(self.cheek)
+
+        # ----- Скролл -----
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        root_layout.addWidget(scroll, stretch=1)
+
+        self.content = QWidget()
+        scroll.setWidget(self.content)
+        content_layout = QHBoxLayout(self.content)
+        content_layout.setContentsMargins(20, 15, 20, 15)
+        content_layout.setSpacing(15)
+
+        # ===== ЛЕВАЯ КОЛОНКА =====
+        left_col = QVBoxLayout()
+        left_col.setSpacing(10)
+        content_layout.addLayout(left_col, stretch=1)
+
+        # URL
+        self.url_card = Card()
+        url_lbl = QLabel("Ссылка")
+        url_lbl.setStyleSheet(f"color: {FG_DIM}; font-size: 11px;")
+        self.url_card.add(url_lbl)
+
+        url_row = QHBoxLayout()
+        url_row.setSpacing(6)
+        self.url_input = QLineEdit()
+        self.url_input.setPlaceholderText("https://youtube.com/watch?v=...")
+        self.url_input.textChanged.connect(self._on_url_change)
+        url_row.addWidget(self.url_input, stretch=1)
+
+        self.btn_paste = QPushButton("📋")
+        self.btn_paste.setFixedWidth(42)
+        self.btn_paste.setToolTip("Вставить из буфера")
+        self.btn_paste.clicked.connect(self._paste_from_clipboard)
+        url_row.addWidget(self.btn_paste)
+
+        self.url_card.add_layout(url_row)
+        left_col.addWidget(self.url_card)
+
+        # Папка
+        self.dir_card = Card()
+        dir_row = QHBoxLayout()
+        dir_row.setSpacing(6)
+
+        dir_icon = QLabel("📁")
+        dir_icon.setStyleSheet("font-size: 14px;")
+        dir_row.addWidget(dir_icon)
+
+        self.dir_label = QLabel(settings.get_output_dir(self.settings))
+        self.dir_label.setStyleSheet(f"color: {FG_DIM}; font-size: 11px;")
+        self.dir_label.setWordWrap(True)
+        dir_row.addWidget(self.dir_label, stretch=1)
+
+        self.btn_open_dir = QPushButton("📂")
+        self.btn_open_dir.setFixedWidth(38)
+        self.btn_open_dir.setToolTip("Открыть папку")
+        self.btn_open_dir.clicked.connect(self._open_output_dir)
+        dir_row.addWidget(self.btn_open_dir)
+
+        self.btn_choose_dir = QPushButton("Выбрать")
+        self.btn_choose_dir.clicked.connect(self._choose_dir)
+        dir_row.addWidget(self.btn_choose_dir)
+
+        self.dir_card.add_layout(dir_row)
+        left_col.addWidget(self.dir_card)
+
+        # Настройки
+        self.opts_card = Card()
+        opts_title = QLabel("Настройки")
+        opts_title.setStyleSheet(f"color: {FG}; font-size: 12px; font-weight: bold;")
+        self.opts_card.add(opts_title)
+
+        self._add_radio_row(self.opts_card, "Контейнер:", "container",
+                             [("mp4", "MP4"), ("mkv", "MKV"), ("webm", "WEBM")])
+        self._add_radio_row(self.opts_card, "Звук:", "audio_mode",
+                             [("best", "Лучший"), ("128", "128"), ("192", "192"),
+                              ("256", "256"), ("320", "320"), ("none", "Без звука")])
+        self._add_radio_row(self.opts_card, "Кодек:", "audio_codec",
+                             [("aac", "AAC"), ("opus", "Opus"), ("mp3", "MP3")])
+
+        self.mark_check = QCheckBox("Помечать настройки в имени файла")
+        self.mark_check.setChecked(self.settings.get("mark_settings", True))
+        self.opts_card.add(self.mark_check)
+
+        left_col.addWidget(self.opts_card)
+
+        # Режим
+        self.mode_card = Card()
+        mode_row = QHBoxLayout()
+        mode_lbl = QLabel("Режим:")
+        mode_lbl.setStyleSheet(f"color: {FG_DIM}; font-size: 11px;")
+        mode_lbl.setFixedWidth(80)
+        mode_row.addWidget(mode_lbl)
+
+        self.rb_mode_video = QRadioButton("🎬 MP4")
+        self.rb_mode_audio = QRadioButton("🎵 MP3")
+        self.mode_group = QButtonGroup()
+        self.mode_group.addButton(self.rb_mode_video, 0)
+        self.mode_group.addButton(self.rb_mode_audio, 1)
+        if self.settings.get("mode", "video") == "audio":
+            self.rb_mode_audio.setChecked(True)
+        else:
+            self.rb_mode_video.setChecked(True)
+        self.mode_group.buttonClicked.connect(self._on_mode_change)
+
+        mode_row.addWidget(self.rb_mode_video)
+        mode_row.addWidget(self.rb_mode_audio)
+        mode_row.addStretch()
+        self.mode_card.add_layout(mode_row)
+        left_col.addWidget(self.mode_card)
+
+        left_col.addStretch()
+
+        # ===== ПРАВАЯ КОЛОНКА =====
+        right_col = QVBoxLayout()
+        right_col.setSpacing(10)
+        content_layout.addLayout(right_col, stretch=1)
+
+        # Превью
+        self.info_card = Card()
+        self.thumb_label = QLabel()
+        self.thumb_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.thumb_label.setMinimumHeight(120)
+        self.thumb_label.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.thumb_label.mouseDoubleClickEvent = lambda e: self._open_in_browser()
+        self.info_card.add(self.thumb_label)
+
+        self.title_label = QLabel("")
+        self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.title_label.setWordWrap(True)
+        self.title_label.setStyleSheet(f"color: {FG}; font-size: 12px; font-weight: bold;")
+        self.info_card.add(self.title_label)
+
+        right_col.addWidget(self.info_card)
+
+        # Качество
+        self.fmt_card = Card()
+        fmt_title = QLabel("Качество")
+        fmt_title.setStyleSheet(f"color: {FG}; font-size: 12px; font-weight: bold;")
+        self.fmt_card.add(fmt_title)
+
+        self.quality_group = QualityGroup(on_change=self._on_quality_change, columns=3)
+        self.fmt_card.add(self.quality_group)
+
+        right_col.addWidget(self.fmt_card)
+        right_col.addStretch()
+
+        # ===== НИЖНЯЯ ПАНЕЛЬ =====
+        self.bottom = QWidget()
+        self.bottom.setStyleSheet(f"background-color: {BG}; border-top: 1px solid {BORDER};")
+        bottom_layout = QVBoxLayout(self.bottom)
+        bottom_layout.setContentsMargins(20, 10, 20, 10)
+        bottom_layout.setSpacing(6)
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+
+        self.btn_fetch = GlowButton("🔍  Получить форматы", self, is_primary=False)
+        self.btn_fetch.setObjectName("glow_btn")
+        self.btn_fetch.clicked.connect(self._on_fetch)
+        btn_row.addWidget(self.btn_fetch)
+        self._glow_buttons.append(self.btn_fetch)
+
+        self.btn_refresh = QPushButton("🔄")
+        self.btn_refresh.setFixedWidth(46)
+        self.btn_refresh.clicked.connect(self._on_fetch)
+        btn_row.addWidget(self.btn_refresh)
+
+        btn_row.addStretch()
+
+        self.btn_download = GlowButton("⬇  Скачать", self, is_primary=True)
+        self.btn_download.setObjectName("glow_btn_primary")
+        self.btn_download.setMinimumWidth(180)
+        self.btn_download.clicked.connect(self._on_download)
+        btn_row.addWidget(self.btn_download)
+        self._glow_buttons.append(self.btn_download)
+
+        bottom_layout.addLayout(btn_row)
+
+        prog_row = QHBoxLayout()
+        prog_row.setSpacing(8)
+
+        self.progress = QProgressBar()
+        self.progress.setRange(0, 100)
+        self.progress.setValue(0)
+        prog_row.addWidget(self.progress, stretch=1)
+
+        self.progress_label = QLabel("0%")
+        self.progress_label.setStyleSheet(f"color: {FG_DIM}; font-size: 11px; font-weight: bold;")
+        self.progress_label.setFixedWidth(50)
+        self.progress_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        prog_row.addWidget(self.progress_label)
+
+        bottom_layout.addLayout(prog_row)
+
+        self.status_label = QLabel("Готов к работе")
+        self.status_label.setStyleSheet(f"color: {FG_DIM}; font-size: 11px;")
+        bottom_layout.addWidget(self.status_label)
+
+        root_layout.addWidget(self.bottom)
+
+        self._setup_shortcuts()
+
+    # --------------------------------------------------------
+    #                    ХЕЛПЕРЫ UI
+    # --------------------------------------------------------
+    def _add_radio_row(self, card, label_text, attr_name, options):
+        row = QHBoxLayout()
+        row.setSpacing(8)
+
+        lbl = QLabel(label_text)
+        lbl.setStyleSheet(f"color: {FG_DIM}; font-size: 11px;")
+        lbl.setFixedWidth(80)
+        row.addWidget(lbl)
+
+        group = QButtonGroup(self)
+        buttons = {}
+        current = self.settings.get(attr_name, options[0][0])
+
+        for i, (val, text) in enumerate(options):
+            rb = QRadioButton(text)
+            group.addButton(rb, i)
+            if val == current:
+                rb.setChecked(True)
+            rb.toggled.connect(lambda checked, v=val, n=attr_name: self._on_radio_change(n, v, checked))
+            buttons[val] = rb
+            row.addWidget(rb)
+
+        row.addStretch()
+        card.add_layout(row)
+
+        setattr(self, f"_rb_{attr_name}", buttons)
+
+    def _on_radio_change(self, name, value, checked):
+        if not checked:
+            return
+        if not self._silent:
+            try:
+                from modules.sounds import radio
+                radio()
+            except Exception:
+                pass
+
+    def _paint_cheek(self, event):
+        painter = QPainter(self.cheek)
+        w = self.cheek.width()
+        h = self.cheek.height()
+        grad = QLinearGradient(0, 0, w, 0)
+        grad.setColorAt(0, QColor(ACCENT))
+        grad.setColorAt(1, QColor(BG))
+        painter.fillRect(0, 0, w, h, QBrush(grad))
+        
+    # --------------------------------------------------------
+    #                    TITLEBAR
+    # --------------------------------------------------------
+    def _titlebar_press(self, e):
+        if e.button() == Qt.MouseButton.LeftButton:
+            self._drag_pos = e.globalPosition().toPoint() - self.frameGeometry().topLeft()
+
+    def _titlebar_move(self, e):
+        if self._drag_pos and e.buttons() == Qt.MouseButton.LeftButton:
+            self.move(e.globalPosition().toPoint() - self._drag_pos)
+
+    def _toggle_maximize(self):
+        if self._is_maximized:
+            self.showNormal()
+            self._is_maximized = False
+        else:
+            self.showMaximized()
+            self._is_maximized = True
+
+    def _minimize_to_tray(self):
+        self.hide()
+
+    # --------------------------------------------------------
+    #                    ТРЕЙ
+    # --------------------------------------------------------
+    def _create_tray(self):
+        if not QSystemTrayIcon.isSystemTrayAvailable():
+            return
+        try:
+            icon_path = get_active_icon_path()
+            if not os.path.exists(icon_path):
+                icon_path = ICON_PATH
+            self._tray_icon = QSystemTrayIcon(QIcon(icon_path), self)
+            self._tray_icon.setToolTip("YouTube Downloader")
+
+            menu = QMenu()
+            act_open = QAction("🎬 Открыть", self)
+            act_open.triggered.connect(self._show_from_tray)
+            menu.addAction(act_open)
+
+            act_hide = QAction("📥 Свернуть", self)
+            act_hide.triggered.connect(self.hide)
+            menu.addAction(act_hide)
+
+            menu.addSeparator()
+
+            act_quit = QAction("❌ Выход", self)
+            act_quit.triggered.connect(self._on_close)
+            menu.addAction(act_quit)
+
+            self._tray_icon.setContextMenu(menu)
+            self._tray_icon.activated.connect(self._on_tray_click)
+            self._tray_icon.show()
+        except Exception as e:
+            print(f"⚠️ Не удалось создать трей: {e}")
+
+    def _on_tray_click(self, reason):
+        if reason == QSystemTrayIcon.ActivationReason.Trigger:
+            self._show_from_tray()
+
+    def _show_from_tray(self):
+        self.show()
+        self.raise_()
+        self.activateWindow()
+
+    def update_tray_icon(self):
+        if not self._tray_icon:
+            return
+        try:
+            icon_path = get_active_icon_path()
+            if os.path.exists(icon_path):
+                self._tray_icon.setIcon(QIcon(icon_path))
+        except Exception:
+            pass
+
+    # --------------------------------------------------------
+    #                    URL / Папка
+    # --------------------------------------------------------
+    def _on_url_change(self):
+        url = self.url_input.text().strip()
+        if not url:
+            if not self.downloading:
+                self._set_status("Готов к работе")
+            return
+        if not self.downloading:
+            plat = _detect_platform(url)
+            self._set_status(f"🔗 {plat}")
+
+    def _paste_from_clipboard(self):
+        cb = QApplication.clipboard()
+        text = cb.text()
+        if text:
+            self.url_input.setText(text.strip())
+
+    def _choose_dir(self):
+        current = settings.get_output_dir(self.settings)
+        chosen = QFileDialog.getExistingDirectory(self, "Выбери папку", current)
+        if chosen:
+            self.settings["output_dir"] = chosen
+            self.dir_label.setText(chosen)
+            settings.save(self.settings)
+            self._set_status(f"Папка: {chosen}")
+            try:
+                from modules.sounds import folder_pick
+                folder_pick()
+            except Exception:
+                pass
+
+    def _open_output_dir(self):
+        try:
+            from modules.toast import open_folder
+            open_folder(settings.get_output_dir(self.settings))
+        except Exception as e:
+            print(f"⚠️ Не удалось открыть папку: {e}")
+
+    # --------------------------------------------------------
+    #                    РЕЖИМ
+    # --------------------------------------------------------
+    def _on_mode_change(self):
+        is_audio = self.rb_mode_audio.isChecked()
+        for rb in self._rb_container.values():
+            rb.setEnabled(not is_audio)
+        self._rb_audio_mode["none"].setEnabled(not is_audio)
+
+    # --------------------------------------------------------
+    #                    FETCH
+    # --------------------------------------------------------
+    def _on_fetch(self):
+        if self.downloading or self._fetch_in_progress:
+            return
+        self._fetch_in_progress = True
+        url = self.url_input.text().strip()
+        if not url:
+            QMessageBox.warning(self, "URL пустой", "Вставь ссылку.")
+            self._fetch_in_progress = False
+            return
+
+        if "playlist" in url.lower() or "list=" in url.lower():
+            self._ask_playlist(url)
+            return
+
+        self.btn_fetch.setEnabled(False)
+        self.btn_refresh.setEnabled(False)
+        self.btn_download.setEnabled(False)
+        self.quality_group.clear()
+        self.title_label.setText("")
+        self.thumb_label.clear()
+        self._set_status("Получаю форматы...")
+        threading.Thread(target=self._fetch_worker, args=(url,), daemon=True).start()
+
+    def _fetch_worker(self, url):
+        try:
+            title, videos, audios, thumb_url, meta = core.get_formats(url)
+            self.title_text = title
+            self.meta = meta
+            self.current_url = url
+
+            is_audio = self.rb_mode_audio.isChecked()
+            if is_audio:
+                self.formats = core.unique_sorted_audio(audios)
+            else:
+                self.formats = core.unique_sorted_video(videos)
+
+            self.sig_populate.emit(title, thumb_url or "")
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            self.sig_error.emit(str(e))
+
+    def _populate_formats(self, title, thumb_url):
+        try:
+            self.title_label.setText(f"🎬 {title}")
+
+            items = []
+            for fmt in self.formats:
+                label = self._fmt_label(fmt)
+                items.append((label, fmt['id']))
+
+            self.quality_group.set_items(items)
+
+            self.btn_fetch.setEnabled(True)
+            self.btn_refresh.setEnabled(True)
+            self.btn_download.setEnabled(bool(self.formats))
+            self._set_status(f"Найдено: {len(self.formats)}")
+            self._fetch_in_progress = False
+
+            if thumb_url and self.settings.get("preview_enabled", True):
+                threading.Thread(target=self._load_thumb_worker, args=(thumb_url,), daemon=True).start()
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+
+    def _load_thumb_worker(self, url):
+        try:
+            import urllib.request
+            import ssl as _ssl
+            ctx = _ssl._create_unverified_context()
+            req = urllib.request.Request(url, headers={
+                "User-Agent": "Mozilla/5.0 (YouTubeDownloader)"
+            })
+            with urllib.request.urlopen(req, timeout=10, context=ctx) as resp:
+                data = resp.read()
+
+            from PyQt6.QtGui import QImage
+            img = QImage()
+            img.loadFromData(data)
+            if img.isNull():
+                return
+            self.sig_thumb.emit(data)
+        except Exception as e:
+            print(f"⚠️ Не удалось загрузить превью: {e}")
+
+    def _set_thumb(self, image_bytes):
+        try:
+            from PyQt6.QtGui import QImage, QPixmap
+            img = QImage()
+            img.loadFromData(image_bytes)
+            if img.isNull():
+                return
+
+            pix = QPixmap.fromImage(img).scaled(
+                220, 220,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            self._thumb_pixmap = pix
+            self.thumb_label.setPixmap(pix)
+            self.thumb_label.setFixedHeight(pix.height())
+        except Exception as e:
+            print(f"⚠️ Ошибка установки превью: {e}")
+
+    def _fmt_label(self, fmt):
+        size_bytes = fmt.get('filesize') or 0
+        if not size_bytes:
+            size_str = "?"
+        elif size_bytes >= 1024 * 1024 * 1024:
+            size_str = f"{size_bytes/(1024**3):.1f} GB"
+        else:
+            size_str = f"{size_bytes/(1024*1024):.0f} MB"
+
+        if self.rb_mode_audio.isChecked():
+            abr = fmt.get('abr') or 0
+            return f"{abr:.0f} kbps · {size_str}"
+
+        h = fmt.get('height') or 0
+        fps = fmt.get('fps') or 0
+        if fps and fps > 30:
+            return f"{h}p{fps} · {size_str}"
+        return f"{h}p · {size_str}"
+
+    def _fetch_error(self, msg):
+        self.btn_fetch.setEnabled(True)
+        self.btn_refresh.setEnabled(True)
+        self._set_status("Ошибка получения форматов")
+        QMessageBox.critical(self, "Ошибка", msg)
+        self._fetch_in_progress = False
+
+    def _on_quality_change(self, value):
+        for fmt in self.formats:
+            if fmt.get('id') == value:
+                self.selected_format = fmt
+                self._set_status(f"Выбрано: {self._fmt_label(fmt)}")
+                return
+        self.selected_format = None
+
+    # --------------------------------------------------------
+    #                    DOWNLOAD
+    # --------------------------------------------------------
+    def _on_download(self):
+        if self.downloading:
+            return
+        fmt = self.selected_format
+        if not fmt:
+            QMessageBox.warning(self, "Качество не выбрано", "Выбери качество.")
+            return
+        url = self.url_input.text().strip()
+        if not url:
+            QMessageBox.warning(self, "URL пустой", "Вставь ссылку.")
+            return
+
+        suffix = self._build_suffix()
+        output_dir = self._get_output_dir()
+        action = self._check_duplicate(self.title_text, output_dir, suffix)
+        if action == "skip":
+            self._set_status("⏭ Пропущено (файл уже есть)")
+            return
+        self._rename_flag = (action == "rename")
+
+        self.downloading = True
+        self.btn_fetch.setEnabled(False)
+        self.btn_refresh.setEnabled(False)
+        self._set_download_btn_cancel_mode()
+        self._set_status("Скачиваю...")
+        self._set_progress(0)
+
+        mode = "audio" if self.rb_mode_audio.isChecked() else "video"
+        threading.Thread(target=self._download_worker, args=(url, fmt, mode), daemon=True).start()
+
+    def _set_download_btn_cancel_mode(self):
+        self.btn_download.setText("⏹  Отмена")
+        self.btn_download.setObjectName("glow_btn_primary")
+        try:
+            self.btn_download.clicked.disconnect()
+        except Exception:
+            pass
+        self.btn_download.clicked.connect(self._on_cancel)
+        self.btn_download.setEnabled(True)
+
+    def _set_download_btn_normal_mode(self):
+        self.btn_download.setText("⬇  Скачать")
+        try:
+            self.btn_download.clicked.disconnect()
+        except Exception:
+            pass
+        self.btn_download.clicked.connect(self._on_download)
+        self.btn_download.setEnabled(bool(self.formats))
+
+    def _on_cancel(self):
+        if not self.downloading:
+            return
+        try:
+            from modules import core
+            core.cancel_download()
+            self._set_status("⏹ Отмена...")
+        except Exception as e:
+            print(f"⚠️ Ошибка отмены: {e}")
+
+    def _download_worker(self, url, fmt, mode):
+        try:
+            core.PROGRESS_CALLBACK = self._on_progress
+            output_dir = self._get_output_dir()
+            suffix = self._build_suffix()
+
+            if mode == "audio":
+                codec = self._get_checked("_rb_audio_codec", "aac")
+                if codec not in ("mp3", "m4a"):
+                    codec = "mp3"
+                bitrate = None
+                am = self._get_checked("_rb_audio_mode", "best")
+                if am.isdigit():
+                    bitrate = int(am)
+
+                final_path = core.download_audio(
+                    url, fmt['id'], output_dir,
+                    codec=codec, bitrate=bitrate,
+                    name_suffix=suffix,
+                    rename_if_exists=self._rename_flag,
+                )
+                self._last_downloaded_file = final_path
+
+                mp3_path = final_path or embed.find_latest_mp3(output_dir)
+                if mp3_path and os.path.exists(mp3_path):
+                    thumb = embed.find_thumbnail(mp3_path)
+                    cover = thumb if thumb else (COVER_PATH if os.path.exists(COVER_PATH) else None)
+                    if cover:
+                        embed.embed_cover(mp3_path, cover)
+                    if self.settings.get("embed_metadata", True) and self.meta:
+                        embed.embed_metadata(mp3_path, self.meta)
+                try:
+                    embed.cleanup_temp_files(output_dir)
+                except Exception:
+                    pass
+            else:
+                container = self._get_checked("_rb_container", "mp4")
+                am = self._get_checked("_rb_audio_mode", "best")
+                audio_mode = 'best'
+                audio_bitrate = None
+                audio_codec = None
+                if am == 'none':
+                    audio_mode = 'none'
+                elif am.isdigit():
+                    audio_mode = 'bitrate'
+                    audio_bitrate = int(am)
+
+                final_path = core.download_video(
+                    url, fmt['id'], output_dir,
+                    container=container,
+                    audio_mode=audio_mode,
+                    audio_bitrate=audio_bitrate,
+                    audio_codec=audio_codec,
+                    name_suffix=suffix,
+                    rename_if_exists=self._rename_flag,
+                )
+                self._last_downloaded_file = final_path
+
+            core.PROGRESS_CALLBACK = None
+            QTimer.singleShot(0, self._download_done)
+        except yt_dlp.utils.DownloadCancelled:
+            core.PROGRESS_CALLBACK = None
+            QTimer.singleShot(0, self._download_cancelled)
+        except Exception as e:
+            core.PROGRESS_CALLBACK = None
+            QTimer.singleShot(0, lambda: self._download_error(str(e)))
+
+    def _download_cancelled(self):
+        self.downloading = False
+        self.btn_fetch.setEnabled(True)
+        self.btn_refresh.setEnabled(True)
+        self._set_download_btn_normal_mode()
+        self._set_status("⏹ Отменено")
+
+    def _download_done(self):
+        self.downloading = False
+        self.btn_fetch.setEnabled(True)
+        self.btn_refresh.setEnabled(True)
+        self._set_download_btn_normal_mode()
+
+        output_dir = self._get_output_dir()
+
+        saved_url = self.url_input.text().strip()
+        settings.add_recent_url(self.settings, saved_url)
+        self.url_input.setText("")
+
+        self._set_status(f"✅ Готово! Файл в: {output_dir}")
+
+        latest_file = self._last_downloaded_file
+        if latest_file and os.path.exists(latest_file):
+            settings.add_to_history(self.settings, latest_file,
+                                    url=saved_url, title=self.title_text)
+        self._last_downloaded_file = None
+        self.selected_format = None
+
+        if self.settings.get("clear_thumb_cache", True):
+            try:
+                from modules import cache
+                cache.clear_thumbnail_cache(latest_file)
+                cache.clear_vlc_cache()
+            except Exception:
+                pass
+
+        settings.save(self.settings)
+
+        try:
+            if latest_file:
+                QtToast(self, f"✅ Файл сохранён:\n{os.path.basename(latest_file)}")
+            else:
+                QtToast(self, f"✅ Файл сохранён:\n{output_dir}")
+        except Exception as e:
+            print(f"⚠️ Ошибка тоста: {e}")
+
+    def _download_error(self, msg):
+        self.downloading = False
+        self.btn_fetch.setEnabled(True)
+        self.btn_refresh.setEnabled(True)
+        self._set_download_btn_normal_mode()
+        self._set_status("Ошибка скачивания")
+        QMessageBox.critical(self, "Ошибка", msg)
+        
+    # --------------------------------------------------------
+    #                    ВСПОМОГАТЕЛЬНЫЕ
+    # --------------------------------------------------------
+    def _get_checked(self, attr, default):
+        buttons = getattr(self, attr, {})
+        for val, rb in buttons.items():
+            if rb.isChecked():
+                return val
+        return default
+
+    def _get_output_dir(self):
+        base = settings.get_output_dir(self.settings)
+        if not self.settings.get("auto_sort", False):
+            return base
+        if self.rb_mode_audio.isChecked():
+            sub = self.settings.get("sort_audio_dir", "Музыка")
+        elif not self.mark_check.isChecked():
+            sub = self.settings.get("sort_archive_dir", "Архив")
+        else:
+            sub = self.settings.get("sort_video_dir", "Видео")
+        full = os.path.join(base, sub)
+        try:
+            os.makedirs(full, exist_ok=True)
+        except Exception:
+            return base
+        return full
+
+    def _build_suffix(self):
+        if not self.mark_check.isChecked():
+            return ""
+        if self.rb_mode_audio.isChecked():
+            codec = self._get_checked("_rb_audio_codec", "mp3")
+            if codec not in ("mp3", "m4a"):
+                codec = "mp3"
+            am = self._get_checked("_rb_audio_mode", "best")
+            br = f"-{am}" if am.isdigit() else ""
+            return f"{codec}{br}"
+        cont = self._get_checked("_rb_container", "mp4")
+        am = self._get_checked("_rb_audio_mode", "best")
+        parts = [cont]
+        if am == "none":
+            parts.append("nosound")
+        elif am.isdigit():
+            parts.append(f"a{am}")
+        return "-".join(parts)
+
+    def _check_duplicate(self, title, output_dir, suffix=""):
+        safe = re.sub(r'[<>:"/\\|?*]', '_', title).strip()
+        base = f"{safe} [{suffix}]" if suffix else safe
+        found = []
+        if os.path.isdir(output_dir):
+            for f in os.listdir(output_dir):
+                name_no_ext, ext = os.path.splitext(f)
+                if ext.lower() in ('.mp3', '.mp4', '.mkv', '.webm', '.m4a'):
+                    if name_no_ext == base or name_no_ext.startswith(base + "_"):
+                        found.append(f)
+        if not found:
+            return None
+
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Дубликат")
+        msg.setText(f"⚠️ Файл уже существует\nНайдено: {len(found)}")
+        msg.setInformativeText(found[0][:60])
+        b_skip = msg.addButton("⏭ Пропустить", QMessageBox.ButtonRole.RejectRole)
+        b_rename = msg.addButton("📝 Переименовать", QMessageBox.ButtonRole.ActionRole)
+        b_over = msg.addButton("♻️ Перезаписать", QMessageBox.ButtonRole.AcceptRole)
+        msg.exec()
+
+        if msg.clickedButton() == b_skip:
+            return "skip"
+        if msg.clickedButton() == b_rename:
+            return "rename"
+        return "overwrite"
+
+    def _set_status(self, text):
+        self.status_label.setText(text)
+
+    def _set_progress(self, percent):
+        self.progress.setValue(int(percent))
+        self.progress_label.setText(f"{percent:.0f}%")
+
+    def _on_progress(self, d):
+        if d.get('status') == 'downloading':
+            total = d.get('total_bytes') or d.get('total_bytes_estimate')
+            downloaded = d.get('downloaded_bytes', 0)
+            if total:
+                percent = downloaded / total * 100
+                self.sig_progress.emit(percent)
+            speed = d.get('speed') or 0
+            eta = d.get('eta')
+            self.sig_info.emit(speed, eta)
+        elif d.get('status') == 'finished':
+            self.sig_progress.emit(100.0)
+
+    def _update_info(self, speed_bps, eta_sec):
+        def _speed(bps):
+            if not bps:
+                return "—"
+            if bps >= 1024 * 1024:
+                return f"{bps/(1024*1024):.1f} MB/s"
+            if bps >= 1024:
+                return f"{bps/1024:.0f} KB/s"
+            return f"{bps:.0f} B/s"
+
+        def _eta(sec):
+            if sec is None or sec < 0:
+                return "—"
+            sec = int(sec)
+            h, m, s = sec // 3600, (sec % 3600) // 60, sec % 60
+            if h > 0:
+                return f"{h}:{m:02d}:{s:02d}"
+            return f"{m:02d}:{s:02d}"
+
+        self._set_status(f"⬇ {self.progress.value()}% · {_speed(speed_bps)} · осталось {_eta(eta_sec)}")
+
+    # --------------------------------------------------------
+    #                    ПЛЕЙЛИСТ
+    # --------------------------------------------------------
+    def _ask_playlist(self, url):
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Плейлист обнаружен")
+        msg.setText("📚 Плейлист обнаружен")
+        msg.setInformativeText("Скачать весь плейлист в подпапку?")
+        b_all = msg.addButton("📚 Весь плейлист", QMessageBox.ButtonRole.AcceptRole)
+        b_one = msg.addButton("🎬 Одно видео", QMessageBox.ButtonRole.RejectRole)
+        msg.exec()
+        if msg.clickedButton() == b_all:
+            self._download_playlist(url)
+        else:
+            self._on_fetch_single(url)
+
+    def _on_fetch_single(self, url):
+        self.btn_fetch.setEnabled(False)
+        self._set_status("Получаю форматы...")
+        threading.Thread(target=self._fetch_worker, args=(url,), daemon=True).start()
+
+    def _download_playlist(self, url):
+        if self.downloading:
+            return
+        self.downloading = True
+        self.btn_fetch.setEnabled(False)
+        self.btn_refresh.setEnabled(False)
+        self.btn_download.setEnabled(False)
+        self._set_status("📚 Получаю плейлист...")
+        threading.Thread(target=self._playlist_worker, args=(url,), daemon=True).start()
+
+    def _playlist_worker(self, url):
+        try:
+            output_dir = self._get_output_dir()
+            mode = "audio" if self.rb_mode_audio.isChecked() else "video"
+            suffix = self._build_suffix()
+            core.PROGRESS_CALLBACK = self._on_progress
+            if mode == "audio":
+                codec = self._get_checked("_rb_audio_codec", "mp3")
+                if codec not in ("mp3", "m4a"):
+                    codec = "mp3"
+                playlist_dir, title = core.download_playlist(
+                    url, output_dir, mode='audio', codec=codec, name_suffix=suffix
+                )
+            else:
+                container = self._get_checked("_rb_container", "mp4")
+                playlist_dir, title = core.download_playlist(
+                    url, output_dir, mode='video', container=container, name_suffix=suffix
+                )
+            core.PROGRESS_CALLBACK = None
+            QTimer.singleShot(0, lambda d=playlist_dir, t=title: self._playlist_done(d, t))
+        except Exception as e:
+            core.PROGRESS_CALLBACK = None
+            QTimer.singleShot(0, lambda: self._download_error(str(e)))
+
+    def _playlist_done(self, playlist_dir, title):
+        self.downloading = False
+        self.btn_fetch.setEnabled(True)
+        self.btn_refresh.setEnabled(True)
+        self.btn_download.setEnabled(True)
+        self._set_status(f"✅ Плейлист сохранён: {title}")
+
+    # --------------------------------------------------------
+    #                    ДИАЛОГИ
+    # --------------------------------------------------------
+    def _open_settings(self):
+        SettingsDialog(self).exec()
+        
+    def _reset_launcher(self):
+        """Сбрасывает preferred_gui и перезапускает лаунчер."""
+        try:
+            from config import set_preferred_gui
+            set_preferred_gui(None)
+        except Exception as e:
+            print(f"⚠️ Не удалось сбросить preferred_gui: {e}")
+
+        # Запускаем лаунчер
+        import subprocess
+        launcher_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "downloader_launcher.py"
+        )
+        try:
+            subprocess.Popen([sys.executable, launcher_path])
+        except Exception as e:
+            print(f"⚠️ Не удалось запустить лаунчер: {e}")
+            return
+
+        # Закрываем текущее приложение
+        QApplication.quit()
+
+    def _open_profiles(self):
+        ProfilesDialog(self).exec()
+
+    def _open_history(self):
+        HistoryDialog(self).exec()
+
+    def _open_changelog(self):
+        ChangelogDialog(self).exec()
+
+    def _open_icon_manager(self):
+        IconManagerDialog(self).exec()
+
+    def _open_player(self):
+        QMessageBox.information(self, "Плеер", "🎵 Плеер появится в следующем обновлении.")
+
+    def _open_in_browser(self):
+        if self.current_url:
+            webbrowser.open(self.current_url)
+
+    def _change_theme(self):
+        ThemeDialog(self).exec()
+
+    def _show_holiday_toast(self):
+        try:
+            QtToast(self, self._holiday_greeting, duration=7000)
+        except Exception as e:
+            print(f"⚠️ Ошибка праздничного тоста: {e}")
+
+    def _start_falling_fx_qt(self):
+        """Запускает падающие праздничные объекты (PyQt6-версия)."""
+        try:
+            from modules.falling_fx_qt import FallingFXQt
+
+            parent = self.centralWidget()
+            self._falling_fx = FallingFXQt(
+                parent,
+                self._holiday_theme,
+                count=12,
+                speed=1.5,
+            )
+            self._falling_fx.setGeometry(parent.rect())
+            self._falling_fx.raise_()
+            self._falling_fx.show()
+        except Exception as e:
+            print(f"⚠️ Не удалось запустить падающие объекты: {e}")
+
+    def _check_ytdlp_update(self):
+        try:
+            from modules import updater
+            updated = updater.check_and_update(silent=True)
+            if updated:
+                QTimer.singleShot(0, lambda: QMessageBox.information(
+                    self, "yt-dlp обновлён",
+                    "📦 yt-dlp обновлён!\nПерезапусти приложение."
+                ))
+        except Exception as e:
+            print(f"⚠️ Ошибка проверки обновлений: {e}")
+
+    def _setup_shortcuts(self):
+        from PyQt6.QtGui import QShortcut, QKeySequence
+        QShortcut(QKeySequence("Ctrl+V"), self, self._paste_from_clipboard)
+        QShortcut(QKeySequence("Return"), self, self._on_fetch)
+        QShortcut(QKeySequence("F5"), self, self._on_fetch)
+        QShortcut(QKeySequence("Escape"), self, self._on_close)
+        QShortcut(QKeySequence("Ctrl+H"), self, self._open_history)
+        QShortcut(QKeySequence("Ctrl+T"), self, self._change_theme)
+
+    def _on_close(self):
+        try:
+            geom = f"{self.width()}x{self.height()}"
+            self.settings["window_geometry"] = geom
+        except Exception:
+            pass
+        if getattr(self, "_falling_fx", None):
+            try:
+                self._falling_fx.stop()
+            except Exception:
+                pass
+
+        self.settings["mode"] = "audio" if self.rb_mode_audio.isChecked() else "video"
+        self.settings["container"] = self._get_checked("_rb_container", "mp4")
+        self.settings["audio_mode"] = self._get_checked("_rb_audio_mode", "best")
+        self.settings["audio_codec"] = self._get_checked("_rb_audio_codec", "aac")
+        self.settings["mark_settings"] = self.mark_check.isChecked()
+        settings.save(self.settings)
+
+        if getattr(self, "_glow_timer", None):
+            self._glow_timer.stop()
+
+        if self._tray_icon:
+            try:
+                self._tray_icon.hide()
+            except Exception:
+                pass
+
+        QApplication.quit()
+
+
+# ============================================================
+#                    ДИАЛОГИ
+# ============================================================
+class SettingsDialog(QDialog):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setWindowTitle("Настройки")
+        self.setFixedSize(480, 560)
+        self.parent_app = parent
+        self.vars = {}
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(10)
+
+        title = QLabel("⚙️ Настройки")
+        title.setStyleSheet(f"color: {FG}; font-size: 16px; font-weight: bold;")
+        layout.addWidget(title)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        inner = QWidget()
+        inner_layout = QVBoxLayout(inner)
+        inner_layout.setSpacing(12)
+        scroll.setWidget(inner)
+        layout.addWidget(scroll, stretch=1)
+
+        def add_check(key, label, hint=""):
+            cb = QCheckBox(label)
+            cb.setChecked(parent.settings.get(key, True))
+            self.vars[key] = cb
+            inner_layout.addWidget(cb)
+            if hint:
+                h = QLabel(hint)
+                h.setStyleSheet(f"color: {FG_DIM}; font-size: 10px; font-style: italic;")
+                h.setContentsMargins(22, 0, 0, 0)
+                inner_layout.addWidget(h)
+
+        add_check("sounds_enabled", "🔊 Звуки", "Клики, переключения, уведомления")
+        add_check("toasts_enabled", "💬 Всплывающие уведомления")
+        add_check("preview_enabled", "🖼 Показывать превью")
+        add_check("animations_enabled", "✨ Анимации")
+        add_check("clear_thumb_cache", "🧹 Чистить кэш обложек")
+        add_check("embed_metadata", "📝 Метаданные в MP3")
+        add_check("auto_update_ytdlp", "📦 Автообновление yt-dlp")
+        add_check("auto_sort", "📂 Автосортировка по папкам")
+        add_check("check_updates", "🔄 Проверять обновления")
+
+        inner_layout.addStretch()
+
+        # Кнопки
+        btn_row = QHBoxLayout()
+
+        btn_switch = QPushButton("🔄 Сменить версию")
+        btn_switch.clicked.connect(self._switch_version)
+        btn_row.addWidget(btn_switch)
+
+        btn_reset = QPushButton("Сбросить")
+        btn_reset.clicked.connect(self._reset)
+        btn_row.addWidget(btn_reset)
+
+        btn_row.addStretch()
+
+        btn_save = QPushButton("Сохранить")
+        btn_save.setObjectName("primary")
+        btn_save.clicked.connect(self._save)
+        btn_row.addWidget(btn_save)
+
+        layout.addLayout(btn_row)
+
+    def _reset(self):
+        """Сбросить настройки на дефолтные."""
+        try:
+            from modules.settings import DEFAULTS
+        except ImportError:
+            DEFAULTS = {}
+        for key, cb in self.vars.items():
+            cb.setChecked(DEFAULTS.get(key, True))
+
+    def _save(self):
+        for key, cb in self.vars.items():
+            self.parent_app.settings[key] = cb.isChecked()
+        settings.save(self.parent_app.settings)
+        self.accept()
+        
+    def _switch_version(self):
+        """Спрашивает подтверждение и перезапускает лаунчер."""
+        from PyQt6.QtWidgets import QMessageBox
+        reply = QMessageBox.question(
+            self,
+            "Сменить версию",
+            "Приложение закроется и откроется лаунчер выбора версии.\n"
+            "Продолжить?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.accept()
+            self.parent_app._reset_launcher()
+
+
+class ProfilesDialog(QDialog):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setWindowTitle("Профили")
+        self.setFixedSize(500, 500)
+        self.parent_app = parent
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(10)
+
+        title = QLabel("🎯 Профили")
+        title.setStyleSheet(f"color: {FG}; font-size: 16px; font-weight: bold;")
+        layout.addWidget(title)
+
+        self.list = QListWidget()
+        layout.addWidget(self.list, stretch=1)
+        self._refresh()
+
+        btn_row = QHBoxLayout()
+        b1 = QPushButton("✓ Применить")
+        b1.setObjectName("primary")
+        b1.clicked.connect(self._apply)
+        btn_row.addWidget(b1)
+
+        b2 = QPushButton("💾 Сохранить текущий")
+        b2.clicked.connect(self._save_current)
+        btn_row.addWidget(b2)
+
+        btn_row.addStretch()
+
+        b3 = QPushButton("🗑 Удалить")
+        b3.clicked.connect(self._delete)
+        btn_row.addWidget(b3)
+
+        layout.addLayout(btn_row)
+
+        presets = QLabel("Быстрые пресеты:")
+        presets.setStyleSheet(f"color: {FG_DIM}; font-size: 11px;")
+        layout.addWidget(presets)
+
+        presets_row = QHBoxLayout()
+        PRESETS = {
+            "🎵 Музыка 320": {"mode": "audio", "audio_codec": "mp3", "audio_mode": "320"},
+            "🎬 Видео 1080": {"mode": "video", "container": "mp4", "audio_codec": "aac", "audio_mode": "320"},
+            "📦 Архив": {"mode": "video", "container": "mp4", "audio_codec": "aac", "audio_mode": "best"},
+        }
+        for name, data in PRESETS.items():
+            b = QPushButton(name)
+            b.clicked.connect(lambda _, d=data: self._apply_data(d))
+            presets_row.addWidget(b)
+        presets_row.addStretch()
+        layout.addLayout(presets_row)
+
+    def _refresh(self):
+        self.list.clear()
+        profiles = self.parent_app.settings.get("profiles", {})
+        for name in profiles:
+            self.list.addItem(f"  {name}")
+
+    def _apply(self):
+        item = self.list.currentItem()
+        if not item:
+            return
+        name = item.text().strip()
+        profiles = self.parent_app.settings.get("profiles", {})
+        if name in profiles:
+            self._apply_data(profiles[name])
+
+    def _apply_data(self, data):
+        p = self.parent_app
+        p._silent = True
+        if data.get("mode") == "audio":
+            p.rb_mode_audio.setChecked(True)
+        else:
+            p.rb_mode_video.setChecked(True)
+        if "container" in data:
+            btn = p._rb_container.get(data["container"])
+            if btn:
+                btn.setChecked(True)
+        if "audio_mode" in data:
+            btn = p._rb_audio_mode.get(data["audio_mode"])
+            if btn:
+                btn.setChecked(True)
+        if "audio_codec" in data:
+            btn = p._rb_audio_codec.get(data["audio_codec"])
+            if btn:
+                btn.setChecked(True)
+        p._silent = False
+        p._on_mode_change()
+        self.accept()
+
+    def _save_current(self):
+        name, ok = QInputDialog.getText(self, "Имя профиля", "Название:")
+        if not ok or not name:
+            return
+        p = self.parent_app
+        data = {
+            "mode": "audio" if p.rb_mode_audio.isChecked() else "video",
+            "container": p._get_checked("_rb_container", "mp4"),
+            "audio_mode": p._get_checked("_rb_audio_mode", "best"),
+            "audio_codec": p._get_checked("_rb_audio_codec", "aac"),
+        }
+        profiles = p.settings.get("profiles", {})
+        profiles[name] = data
+        p.settings["profiles"] = profiles
+        settings.save(p.settings)
+        self._refresh()
+
+    def _delete(self):
+        item = self.list.currentItem()
+        if not item:
+            return
+        name = item.text().strip()
+        p = self.parent_app
+        profiles = p.settings.get("profiles", {})
+        if name in profiles:
+            del profiles[name]
+            p.settings["profiles"] = profiles
+            settings.save(p.settings)
+            self._refresh()
+
+
+class HistoryDialog(QDialog):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setWindowTitle("История")
+        self.setFixedSize(700, 500)
+        self.parent_app = parent
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        title = QLabel("📜 История скачанного")
+        title.setStyleSheet(f"color: {FG}; font-size: 16px; font-weight: bold;")
+        layout.addWidget(title)
+
+        self.list = QListWidget()
+        history = parent.settings.get("history", [])
+        for i, entry in enumerate(history, 1):
+            date = entry.get("date", "?")
+            title_ = entry.get("title", "?")
+            self.list.addItem(f"{i:2}. [{date}] {title_}")
+
+        layout.addWidget(self.list, stretch=1)
+
+        btn_row = QHBoxLayout()
+        b_open = QPushButton("▶ Открыть файл")
+        b_open.clicked.connect(self._open_file)
+        btn_row.addWidget(b_open)
+
+        b_folder = QPushButton("📂 Папка")
+        b_folder.clicked.connect(self._open_folder)
+        btn_row.addWidget(b_folder)
+
+        btn_row.addStretch()
+
+        b_clear = QPushButton("🗑 Очистить")
+        b_clear.clicked.connect(self._clear)
+        btn_row.addWidget(b_clear)
+
+        layout.addLayout(btn_row)
+
+    def _open_file(self):
+        item = self.list.currentRow()
+        history = self.parent_app.settings.get("history", [])
+        if 0 <= item < len(history):
+            f = history[item].get("file", "")
+            if f and os.path.exists(f):
+                try:
+                    from modules.toast import open_file
+                    open_file(f)
+                except Exception:
+                    pass
+
+    def _open_folder(self):
+        item = self.list.currentRow()
+        history = self.parent_app.settings.get("history", [])
+        if 0 <= item < len(history):
+            f = history[item].get("file", "")
+            if f:
+                try:
+                    from modules.toast import open_folder
+                    open_folder(os.path.dirname(f))
+                except Exception:
+                    pass
+
+    def _clear(self):
+        self.parent_app.settings["history"] = []
+        settings.save(self.parent_app.settings)
+        self.list.clear()
+
+
+class ChangelogDialog(QDialog):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setWindowTitle("Что нового")
+        self.setFixedSize(640, 560)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        title = QLabel("📋 Что нового")
+        title.setStyleSheet(f"color: {FG}; font-size: 16px; font-weight: bold;")
+        layout.addWidget(title)
+
+        txt = QTextEdit()
+        txt.setReadOnly(True)
+        content = "Changelog не найден."
+        if os.path.exists(CHANGELOG_PATH):
+            try:
+                with open(CHANGELOG_PATH, "r", encoding="utf-8") as f:
+                    content = f.read()
+            except Exception as e:
+                content = f"Ошибка: {e}"
+        txt.setPlainText(content)
+        layout.addWidget(txt, stretch=1)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        b = QPushButton("Закрыть")
+        b.clicked.connect(self.accept)
+        btn_row.addWidget(b)
+        layout.addLayout(btn_row)
+
+
+class IconManagerDialog(QDialog):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setWindowTitle("Менеджер иконок")
+        self.setFixedSize(700, 500)
+        self.parent_app = parent
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+
+        title = QLabel("🎨 Менеджер иконок")
+        title.setStyleSheet(f"color: {FG}; font-size: 16px; font-weight: bold;")
+        layout.addWidget(title)
+
+        body = QHBoxLayout()
+        body.setSpacing(15)
+
+        left = QVBoxLayout()
+        self.list = QListWidget()
+        left.addWidget(self.list)
+        body.addLayout(left, stretch=1)
+
+        right = QVBoxLayout()
+        self.preview = QLabel()
+        self.preview.setFixedSize(180, 180)
+        self.preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.preview.setStyleSheet(f"background-color: {BG_CARD}; border-radius: 12px;")
+        right.addWidget(self.preview, alignment=Qt.AlignmentFlag.AlignHCenter)
+
+        b_apply = QPushButton("✓ Применить")
+        b_apply.setObjectName("primary")
+        b_apply.clicked.connect(self._apply)
+        right.addWidget(b_apply)
+
+        b_create = QPushButton("➕ Создать")
+        b_create.clicked.connect(self._create)
+        right.addWidget(b_create)
+
+        b_delete = QPushButton("🗑 Удалить")
+        b_delete.clicked.connect(self._delete)
+        right.addWidget(b_delete)
+
+        right.addStretch()
+        body.addLayout(right)
+
+        layout.addLayout(body, stretch=1)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        b_close = QPushButton("Закрыть")
+        b_close.clicked.connect(self.accept)
+        btn_row.addWidget(b_close)
+        layout.addLayout(btn_row)
+
+        self.list.currentRowChanged.connect(self._show_preview)
+        self._refresh()
+
+    def _refresh(self):
+        self.list.clear()
+        self._icons = icon_manager.list_icons()
+        active = icon_manager.get_active_icon_name()
+        for name, path in self._icons:
+            display = name + ("  ✓" if name == active else "")
+            self.list.addItem(display)
+
+    def _show_preview(self, row):
+        if row < 0 or row >= len(self._icons):
+            return
+        name, path = self._icons[row]
+        if os.path.exists(path):
+            pix = QPixmap(path).scaled(170, 170, Qt.AspectRatioMode.KeepAspectRatio,
+                                        Qt.TransformationMode.SmoothTransformation)
+            self.preview.setPixmap(pix)
+
+    def _apply(self):
+        row = self.list.currentRow()
+        if row < 0 or row >= len(self._icons):
+            return
+        name = self._icons[row][0]
+        if icon_manager.apply_icon(name):
+            self.parent_app.settings["active_icon"] = name
+            settings.save(self.parent_app.settings)
+            new_icon = get_active_icon_path()
+            if os.path.exists(new_icon):
+                self.parent_app.setWindowIcon(QIcon(new_icon))
+                self.parent_app._active_icon_path = new_icon
+            self.parent_app.update_tray_icon()
+            self._refresh()
+
+    def _create(self):
+        QMessageBox.information(self, "Генератор", "🎨 Генератор иконок — в следующем обновлении.")
+
+    def _delete(self):
+        row = self.list.currentRow()
+        if row < 0 or row >= len(self._icons):
+            return
+        name = self._icons[row][0]
+        if name in ("classic", "dark"):
+            QMessageBox.warning(self, "Нельзя удалить", "Стандартная иконка.")
+            return
+        if icon_manager.delete_icon(name):
+            self._refresh()
+
+
+class ThemeDialog(QDialog):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setWindowTitle("Выбор темы")
+        self.setFixedSize(360, 340)
+        self.parent_app = parent
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(8)
+
+        title = QLabel("🎨 Выбери тему")
+        title.setStyleSheet(f"color: {FG}; font-size: 16px; font-weight: bold;")
+        layout.addWidget(title)
+
+        current = parent.settings.get("theme", "dark")
+        for key, theme in THEMES.items():
+            is_current = (key == current)
+            label = theme["name"] + ("  ✓" if is_current else "")
+            b = QPushButton(label)
+            b.setMinimumHeight(44)
+            b.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {theme["BG_CARD"]};
+                    color: {theme["FG"]};
+                    border: 1px solid {theme["BORDER"]};
+                    border-radius: 10px;
+                    text-align: left;
+                    padding-left: 16px;
+                    font-size: 13px;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{
+                    border: 2px solid {theme["ACCENT"]};
+                }}
+            """)
+            b.clicked.connect(lambda _, k=key: self._set_theme(k))
+            layout.addWidget(b)
+
+        layout.addStretch()
+
+    def _set_theme(self, name):
+        self.parent_app.settings["theme"] = name
+        settings.save(self.parent_app.settings)
+        QMessageBox.information(self, "Тема", "Тема применена. Перезапусти приложение.")
+        self.accept()
+
+
+class QtToast(QWidget):
+    """Всплывающее уведомление для PyQt6."""
+    def __init__(self, parent, text, duration=3000, bg=None, fg=None):
+        super().__init__(None)
+        self.setWindowFlags(
+            Qt.WindowType.ToolTip |
+            Qt.WindowType.FramelessWindowHint |
+            Qt.WindowType.WindowStaysOnTopHint
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+
+        bg = bg or BG_CARD
+        fg = fg or FG
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        card = QFrame()
+        card.setStyleSheet(f"""
+            QFrame {{
+                background-color: {bg};
+                border: 1px solid {ACCENT};
+                border-radius: 10px;
+            }}
+        """)
+        outer.addWidget(card)
+
+        inner = QVBoxLayout(card)
+        inner.setContentsMargins(16, 12, 16, 12)
+
+        lbl = QLabel(text)
+        lbl.setStyleSheet(f"color: {fg}; font-size: 12px; background: transparent;")
+        lbl.setWordWrap(True)
+        inner.addWidget(lbl)
+
+        self.adjustSize()
+
+        screen = QApplication.primaryScreen().availableGeometry()
+        w, h = self.width(), self.height()
+        x = screen.right() - w - 30
+        y = screen.bottom() - h - 30
+        self.move(x, y)
+
+        self.setWindowOpacity(0.0)
+        self.show()
+        self._fade_in(duration)
+
+    def _fade_in(self, duration):
+        self._anim = QPropertyAnimation(self, b"windowOpacity")
+        self._anim.setDuration(300)
+        self._anim.setStartValue(0.0)
+        self._anim.setEndValue(1.0)
+        self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._anim.start()
+        QTimer.singleShot(duration, self._fade_out)
+
+    def _fade_out(self):
+        self._anim_out = QPropertyAnimation(self, b"windowOpacity")
+        self._anim_out.setDuration(300)
+        self._anim_out.setStartValue(1.0)
+        self._anim_out.setEndValue(0.0)
+        self._anim_out.setEasingCurve(QEasingCurve.Type.InCubic)
+        self._anim_out.finished.connect(self.close)
+        self._anim_out.start()
+
+
+class CookieSetupDialog(QDialog):
+    """Диалог настройки куки."""
+    def __init__(self, parent, first_run=False):
+        super().__init__(parent)
+        self.setWindowTitle("Настройка куки")
+        self.setFixedSize(500, 380)
+        self.parent_app = parent
+        self.first_run = first_run
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 24, 24, 24)
+        layout.setSpacing(12)
+
+        icon_lbl = QLabel("🍪")
+        icon_lbl.setStyleSheet("font-size: 48px;")
+        icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(icon_lbl)
+
+        title = QLabel("Для скачивания с YouTube нужны куки")
+        title.setStyleSheet(f"color: {FG}; font-size: 14px; font-weight: bold;")
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        title.setWordWrap(True)
+        layout.addWidget(title)
+
+        desc = QLabel(
+            "YouTube требует авторизацию, чтобы подтвердить, что ты не бот.\n\n"
+            "Выбери браузер, в котором ты залогинен в YouTube. "
+            "Откроется окно браузера — залогинься (если нужно) и закрой его."
+        )
+        desc.setStyleSheet(f"color: {FG_DIM}; font-size: 11px;")
+        desc.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        desc.setWordWrap(True)
+        layout.addWidget(desc)
+
+        layout.addSpacing(10)
+
+        browser_row = QHBoxLayout()
+        browser_lbl = QLabel("Браузер:")
+        browser_lbl.setStyleSheet(f"color: {FG}; font-size: 12px;")
+        browser_row.addWidget(browser_lbl)
+
+        self.browser_combo = QComboBox()
+        try:
+            from modules import cookie_export
+            installed = cookie_export.get_installed_browsers()
+            if not installed:
+                installed = ["firefox", "chrome", "edge", "brave"]
+        except Exception:
+            installed = ["firefox", "chrome", "edge", "brave"]
+        self.browser_combo.addItems([b.capitalize() for b in installed])
+        browser_row.addWidget(self.browser_combo, stretch=1)
+        layout.addLayout(browser_row)
+
+        layout.addStretch()
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+
+        if not first_run:
+            btn_cancel = QPushButton("Отмена")
+            btn_cancel.clicked.connect(self.reject)
+            btn_row.addWidget(btn_cancel)
+
+        btn_ok = QPushButton("🍪 Получить куки")
+        btn_ok.setObjectName("primary")
+        btn_ok.clicked.connect(self._do_export)
+        btn_row.addWidget(btn_ok)
+
+        layout.addLayout(btn_row)
+
+        self.status_lbl = QLabel("")
+        self.status_lbl.setStyleSheet(f"color: {FG_DIM}; font-size: 11px;")
+        self.status_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.status_lbl)
+
+    def _do_export(self):
+        try:
+            from modules import cookie_export
+        except Exception as e:
+            QMessageBox.warning(self, "Ошибка", f"Модуль экспорта не найден:\n{e}")
+            return
+        browser = self.browser_combo.currentText().lower()
+        self.status_lbl.setText(f"🌐 Открываю {browser}...")
+        QApplication.processEvents()
+
+        path = cookie_export.export_cookies(
+            browser,
+            progress_callback=lambda msg: self.status_lbl.setText(msg)
+        )
+
+        if path:
+            QtToast(self.parent_app, "✅ Куки сохранены! Можно качать.")
+            self.accept()
+        else:
+            QMessageBox.warning(
+                self, "Ошибка",
+                "⚠️ Не удалось получить куки.\n"
+                "Попробуй другой браузер или закрой браузер и повтори."
+            )
+            self.status_lbl.setText("")
+
+
+# ============================================================
+#                    ЗАПУСК
+# ============================================================
+def run():
+    app = QApplication.instance() or QApplication(sys.argv)
+    app.setStyle("Fusion")
+
+    try:
+        from modules.sounds import startup
+        startup()
+    except Exception:
+        pass
+
+    window = DownloaderApp()
+    window.show()
+
+    app.exec()
+
+
+if __name__ == "__main__":
+    run()

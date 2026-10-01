@@ -77,11 +77,64 @@ def get_centered_geometry(width=780, height=920, offset_y=0):
         y = 0
     return f"{width}x{height}+{x}+{y}"
     
+def get_active_icon_path():
+    """Возвращает путь к активной иконке."""
+    try:
+        import json
+        config_path = os.path.join(BASE_DIR, 'config.json')
+        if os.path.exists(config_path):
+            with open(config_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            active = data.get("active_icon", "classic")
+            icon = os.path.join(ICONS_DIR, f"{active}.ico")
+            if os.path.exists(icon):
+                return icon
+    except Exception as e:
+        print(f"⚠️ Не удалось получить активную иконку: {e}")
+    return ICON_PATH
+    
     # Версия приложения — единый источник правды
-APP_VERSION = "0.4.2"
-APP_BUILD_NAME = "Holiday Edition"
+APP_VERSION = "0.5.0"
+APP_BUILD_NAME = "Qt Edition"
 APP_AUTHOR = "Styrbik"
 APP_DESCRIPTION = "YouTube Downloader"
 APP_COPYRIGHT = "© 2026 Styrbik Corp."
 APP_INTERNAL_NAME = "YouTubeDownloader"
 APP_ORIGINAL_FILENAME = "YouTubeDownloader.exe"
+
+def get_preferred_gui():
+    """
+    Возвращает выбранную версию GUI: 'tkinter', 'qt' или None.
+    None — значит, пользователь ещё не выбирал (показать лаунчер).
+    """
+    try:
+        import json
+        if os.path.exists(CONFIG_PATH):
+            with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return data.get("preferred_gui", None)
+    except Exception as e:
+        print(f"⚠️ Не удалось прочитать preferred_gui: {e}")
+    return None
+
+
+def set_preferred_gui(name):
+    """
+    Записывает выбранную версию GUI в config.json.
+    name: 'tkinter' | 'qt' | None (None — сбросить выбор)
+    """
+    try:
+        import json
+        if os.path.exists(CONFIG_PATH):
+            with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        else:
+            data = {}
+        data["preferred_gui"] = name
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        print(f"✅ preferred_gui = {name}")
+        return True
+    except Exception as e:
+        print(f"⚠️ Не удалось записать preferred_gui: {e}")
+        return False
