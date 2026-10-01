@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YouTube Downloader — Скачивай без ограничений</title>
+<meta name="description" content="Красивая качалка для YouTube и YouTube Music. Без подписок, без лимитов, с темами и праздничными эффектами.">
+<link rel="icon" href="https://raw.githubusercontent.com/Styrbik/youtube_downloader/main/icon.ico">
+<style>
+  /* ============ RESET & BASE ============ */
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0f0f0f;
+    --bg-card: #1a1a1a;
+    --bg-card-hover: #222222;
+    --border: #2a2a2a;
+    --fg: #e8e8e8;
+    --fg-dim: #888888;
+    --accent: #e62117;
+    --accent-hover: #ff3b30;
+    --accent-press: #b71c1c;
+    --gradient: linear-gradient(135deg, #e62117, #ff6b60);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  a { color: var(--accent); text-decoration: none; transition: color 0.2s; }
+  a:hover { color: var(--accent-hover); }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ============ АНИМАЦИИ ============ */
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .animate {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s ease, transform 0.8s ease;
+  }
+
+  .animate.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ============ ГРАДИЕНТНАЯ ЧЁЛКА ============ */
+  .top-line {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--gradient);
+    z-index: 1000;
+  }
+
+  /* ============ НАВИГАЦИЯ ============ */
+  .nav {
+    position: fixed;
+    top: 3px; left: 0; right: 0;
+    background: rgba(15, 15, 15, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    z-index: 999;
+    padding: 12px 0;
+  }
+
+  .nav-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 700;
+    font-size: 16px;
+    color: var(--fg);
+  }
+
+  .nav-logo .dot {
+    width: 10px; height: 10px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 12px var(--accent);
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .nav-links a {
+    color: var(--fg-dim);
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .nav-links a:hover { color: var(--fg); }
+
+  .btn-nav {
+    background: var(--accent);
+    color: white !important;
+    padding: 8px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.2s;
+  }
+
+  .btn-nav:hover {
+    background: var(--accent-hover) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(230, 33, 23, 0.3);
+  }
+
+  /* ============ HERO ============ */
+  .hero {
+    padding: 160px 0 100px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 800px; height: 800px;
+    background: radial-gradient(circle, rgba(230, 33, 23, 0.15), transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .hero > * { position: relative; z-index: 1; }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(230, 33, 23, 0.1);
+    border: 1px solid rgba(230, 33, 23, 0.3);
+    color: var(--accent);
+    padding: 6px 16px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 24px;
+    animation: fadeInUp 0.6s ease;
+  }
+
+  .hero h1 {
+    font-size: clamp(32px, 6vw, 64px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: 20px;
+    animation: fadeInUp 0.6s ease 0.1s both;
+  }
+
+  .hero h1 .gradient {
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero p {
+    font-size: clamp(16px, 2vw, 20px);
+    color: var(--fg-dim);
+    max-width: 600px;
+    margin: 0 auto 40px;
+    animation: fadeInUp 0.6s ease 0.2s both;
+  }
+
+  .hero-buttons {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    animation: fadeInUp 0.6s ease 0.3s both;
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 28px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 4px 20px rgba(230, 33, 23, 0.3);
+  }
+
+  .btn-primary:hover {
+    background: var(--accent-hover);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(230, 33, 23, 0.5);
+  }
+
+  .btn-secondary {
+    background: var(--bg-card);
+    color: var(--fg);
+    border: 1px solid var(--border);
+  }
+
+  .btn-secondary:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--accent);
+    color: var(--fg);
+    transform: translateY(-2px);
+  }
+
+  .btn svg { width: 18px; height: 18px; }
+
+  /* ============ СЕКЦИИ ============ */
+  .section {
+    padding: 80px 0;
+  }
+
+  .section-title {
+    font-size: clamp(24px, 4vw, 36px);
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 12px;
+    letter-spacing: -0.02em;
+  }
+
+  .section-subtitle {
+    text-align: center;
+    color: var(--fg-dim);
+    font-size: 16px;
+    max-width: 600px;
+    margin: 0 auto 60px;
+  }
+
+  /* ============ КАРТОЧКИ ВЕРСИЙ ============ */
+  .versions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+
+  .version-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .version-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--gradient);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+
+  .version-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  }
+
+  .version-card:hover::before { opacity: 1; }
+
+  .version-card.recommended {
+    border-color: rgba(230, 33, 23, 0.5);
+  }
+
+  .version-card.recommended::before { opacity: 1; }
+
+  .version-badge {
+    display: inline-block;
+    background: var(--accent);
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 100px;
+    margin-bottom: 16px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .version-card h3 {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .version-card .tagline {
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 16px;
+  }
+
+  .version-card .desc {
+    color: var(--fg-dim);
+    font-size: 14px;
+    line-height: 1.7;
+    margin-bottom: 20px;
+  }
+
+  .version-card ul {
+    list-style: none;
+    margin-bottom: 24px;
+  }
+
+  .version-card li {
+    color: var(--fg);
+    font-size: 14px;
+    padding: 6px 0;
+    padding-left: 24px;
+    position: relative;
+  }
+
+  .version-card li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .version-card li.no::before {
+    content: '✕';
+    color: var(--fg-dim);
+  }
+
+  .version-card li.no { color: var(--fg-dim); }
+
+  /* ============ СЕТКА ФИЧ ============ */
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+  }
+
+  .feature {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .feature:hover {
+    border-color: var(--accent);
+    background: var(--bg-card-hover);
+    transform: translateY(-4px);
+  }
+
+  .feature-icon {
+    font-size: 32px;
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  .feature h4 {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .feature p {
+    color: var(--fg-dim);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* ============ ШАГИ ============ */
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 24px;
+    counter-reset: step;
+  }
+
+  .step {
+    text-align: center;
+    padding: 24px;
+    position: relative;
+  }
+
+  .step-num {
+    width: 48px;
+    height: 48px;
+    background: var(--accent);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 800;
+    margin: 0 auto 16px;
+    box-shadow: 0 0 24px rgba(230, 33, 23, 0.4);
+  }
+
+  .step h4 {
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .step p {
+    color: var(--fg-dim);
+    font-size: 13px;
+  }
+
+  /* ============ ФУТЕР ============ */
+  footer {
+    padding: 60px 0 40px;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+
+  footer .heart {
+    color: var(--accent);
+    font-size: 18px;
+  }
+
+  footer p {
+    color: var(--fg-dim);
+    font-size: 14px;
+    margin-top: 12px;
+  }
+
+  footer .footer-links {
+    display: flex;
+    gap: 20px;
+    justify-content: center;
+    margin-top: 20px;
+    flex-wrap: wrap;
+  }
+
+  footer .footer-links a {
+    color: var(--fg-dim);
+    font-size: 14px;
+  }
+
+  footer .footer-links a:hover { color: var(--accent); }
+
+  /* ============ АДАПТИВНОСТЬ ============ */
+  @media (max-width: 768px) {
+    .nav-links a:not(.btn-nav) { display: none; }
+    .hero { padding: 120px 0 60px; }
+    .section { padding: 60px 0; }
+    .versions { grid-template-columns: 1fr; }
+    .hero-buttons { flex-direction: column; align-items: center; }
+    .btn { width: 100%; justify-content: center; max-width: 320px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top-line"></div>
+
+<!-- НАВИГАЦИЯ -->
+<nav class="nav">
+  <div class="container nav-inner">
+    <div class="nav-logo">
+      <span class="dot"></span>
+      YouTube Downloader
+    </div>
+    <div class="nav-links">
+      <a href="#versions">Версии</a>
+      <a href="#features">Возможности</a>
+      <a href="#install">Установка</a>
+      <a href="https://github.com/Styrbik/youtube_downloader" class="btn-nav">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-badge">
+      ⚡ v0.5.0 — Qt Edition
+    </div>
+    <h1>
+      Скачивай с YouTube<br>
+      <span class="gradient">без ограничений</span>
+    </h1>
+    <p>
+      Красивая качалка для YouTube, YouTube Music и других платформ.
+      Без подписок, без лимитов, с темами и праздничными эффектами.
+    </p>
+    <div class="hero-buttons">
+      <a href="https://github.com/Styrbik/youtube_downloader/releases/latest" class="btn btn-primary">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 12l-5-5h3V1h4v6h3l-5 5zm-6 2h12v2H2v-2z"/></svg>
+        Скачать для Windows
+      </a>
+      <a href="https://github.com/Styrbik/youtube_downloader" class="btn btn-secondary">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        Исходники на GitHub
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ВЕРСИИ -->
+<section class="section" id="versions">
+  <div class="container">
+    <h2 class="section-title animate">Две версии</h2>
+    <p class="section-subtitle animate">Выбирай ту, что тебе больше по душе — выбор можно сделать при первом запуске</p>
+
+    <div class="versions">
+      <div class="version-card recommended animate">
+        <div class="version-badge">Рекомендуется</div>
+        <h3>🎨 Modern</h3>
+        <div class="tagline">PyQt6 — активно развивается</div>
+        <p class="desc">
+          Современный интерфейс с плавными анимациями, тенями и glow-эффектами.
+          Все новые функции появляются здесь в первую очередь.
+        </p>
+        <ul>
+          <li>Современный интерфейс</li>
+          <li>Плавные анимации и тени</li>
+          <li>Праздничные темы с эффектами</li>
+          <li>Автосортировка по папкам</li>
+          <li>Метаданные и обложки</li>
+        </ul>
+        <p style="color: var(--fg-dim); font-size: 13px; margin-bottom: 8px;">Что пока нет:</p>
+        <ul>
+          <li class="no">Плеер (будет в v0.5.1)</li>
+          <li class="no">Генератор иконок (будет в v0.5.1)</li>
+        </ul>
+      </div>
+
+      <div class="version-card animate">
+        <h3>🌙 Classic</h3>
+        <div class="tagline" style="color: var(--fg-dim);">Tkinter — архивная версия</div>
+        <p class="desc">
+          Проверенный временем интерфейс. Финальная версия v0.4.2 «Holiday Edition».
+          Всё, что нужно для скачивания, уже есть. Больше не обновляется.
+        </p>
+        <ul>
+          <li>Стабильность и надёжность</li>
+          <li>Все функции на месте</li>
+          <li>Встроенный плеер для MP3</li>
+          <li>Генератор иконок с GUI</li>
+          <li>Праздничные темы</li>
+        </ul>
+        <p style="color: var(--fg-dim); font-size: 13px; margin-bottom: 8px;">Статус:</p>
+        <ul>
+          <li class="no">Больше не обновляется</li>
+          <li class="no">Только багфиксы</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ВОЗМОЖНОСТИ -->
+<section class="section" id="features">
+  <div class="container">
+    <h2 class="section-title animate">Возможности</h2>
+    <p class="section-subtitle animate">Всё, что нужно для скачивания — в одном приложении</p>
+
+    <div class="features">
+      <div class="feature animate">
+        <span class="feature-icon">🎨</span>
+        <h4>Темы и праздники</h4>
+        <p>3 обычные темы (Тёмная, Бежевая, Красная) и 4 праздничные — с падающими тыквами, снежинками и цветами.</p>
+      </div>
+
+      <div class="feature animate">
+        <span class="feature-icon">🎵</span>
+        <h4>Встроенный плеер</h4>
+        <p>Плеер для MP3 прямо в приложении: пауза, стоп, прогресс-бар и плейлист из истории скачанного.</p>
+      </div>
+
+      <div class="feature animate">
+        <span class="feature-icon">🎛</span>
+        <h4>Любое качество</h4>
+        <p>Динамические кнопки качества с размером файла. Поддержка 4K, 1080p, 320 kbps и других форматов.</p>
+      </div>
+
+      <div class="feature animate">
+        <span class="feature-icon">🖼</span>
+        <h4>Обложки и метаданные</h4>
+        <p>Авто-обрезка заливки YouTube Music, вшивание обложки в MP3, метаданные (артист, альбом, год).</p>
+      </div>
+
+      <div class="feature animate">
+        <span class="feature-icon">📂</span>
+        <h4>Автосортировка</h4>
+        <p>MP3 → Музыка, MP4 → Видео, архив → Архив. Всё автоматически раскладывается по папкам.</p>
+      </div>
+
+      <div class="feature animate">
+        <span class="feature-icon">📦</span>
+        <h4>Автообновление yt-dlp</h4>
+        <p>Свежая версия yt-dlp скачивается с PyPI в фоне. Никаких ручных обновлений.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- УСТАНОВКА -->
+<section class="section" id="install">
+  <div class="container">
+    <h2 class="section-title animate">Как установить</h2>
+    <p class="section-subtitle animate">Три простых шага — и всё готово</p>
+
+    <div class="steps">
+      <div class="step animate">
+        <div class="step-num">1</div>
+        <h4>Скачай</h4>
+        <p>Последний релиз с GitHub</p>
+      </div>
+      <div class="step animate">
+        <div class="step-num">2</div>
+        <h4>Распакуй</h4>
+        <p>В любую папку на компьютере</p>
+      </div>
+      <div class="step animate">
+        <div class="step-num">3</div>
+        <h4>Запусти</h4>
+        <p>YouTubeDownloader.exe — и выбирай версию</p>
+      </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 40px;" class="animate">
+      <a href="https://github.com/Styrbik/youtube_downloader/releases/latest" class="btn btn-primary">
+        <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 12l-5-5h3V1h4v6h3l-5 5zm-6 2h12v2H2v-2z"/></svg>
+        Скачать последнюю версию
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ФУТЕР -->
+<footer>
+  <div class="container">
+    <p style="font-size: 16px; margin-bottom: 8px;">
+      Сделано с <span class="heart">❤️</span> и 🎃
+    </p>
+    <p>© 2026 Styrbik — MIT License</p>
+    <div class="footer-links">
+      <a href="https://github.com/Styrbik/youtube_downloader">GitHub</a>
+      <a href="https://github.com/Styrbik/youtube_downloader/releases">Releases</a>
+      <a href="https://github.com/Styrbik/youtube_downloader/blob/main/CHANGELOG.md">Changelog</a>
+      <a href="https://github.com/Styrbik/youtube_downloader/issues">Issues</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Плавное появление блоков при скролле
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry, index) => {
+      if (entry.isIntersecting) {
+        setTimeout(() => {
+          entry.target.classList.add('visible');
+        }, index * 80);
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.animate').forEach(el => observer.observe(el));
+</script>
+
+</body>
+</html>
