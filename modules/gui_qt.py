@@ -1712,6 +1712,92 @@ class DownloaderApp(QMainWindow):
 
     def _change_theme(self):
         ThemeDialog(self).exec()
+        
+    def _restart_with_animation(self):
+        """Плавно перезапускает приложение с новой темой."""
+        # --- оверлей ---
+        overlay = QWidget(self)
+        overlay.setGeometry(self.rect())
+        overlay.setStyleSheet("background-color: rgba(0, 0, 0, 200);")
+
+        lay = QVBoxLayout(overlay)
+        lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        icon = QLabel("🎨")
+        icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon.setStyleSheet("font-size: 64px; background: transparent;")
+        lay.addWidget(icon)
+
+        txt = QLabel("Применяю тему...")
+        txt.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        txt.setStyleSheet("color: #ffffff; font-size: 16px; font-weight: bold; background: transparent;")
+        lay.addWidget(txt)
+
+        overlay.show()
+        overlay.raise_()
+        overlay.setWindowOpacity(0.0)
+
+        # fade-in оверлея
+        fade_in = QPropertyAnimation(overlay, b"windowOpacity")
+        fade_in.setDuration(250)
+        fade_in.setStartValue(0.0)
+        fade_in.setEndValue(1.0)
+        fade_in.setEasingCurve(QEasingCurve.Type.OutCubic)
+        fade_in.start()
+
+        # fade-out главного окна → перезапуск
+        fade_out = QPropertyAnimation(self, b"windowOpacity")
+        fade_out.setDuration(250)
+        fade_out.setStartValue(1.0)
+        fade_out.setEndValue(0.0)
+        fade_out.setEasingCurve(QEasingCurve.Type.InCubic)
+        fade_out.finished.connect(self._do_restart)
+        fade_out.start()
+
+        self._restart_overlay = overlay
+        self._restart_fade_in = fade_in
+        self._restart_fade_out = fade_out
+
+    def _do_restart(self):
+        """Перезапускает приложение. Работает и в скрипте, и в exe."""
+        # сохраняем состояние настроек
+        self.settings["mode"] = "audio" if self.rb_mode_audio.isChecked() else "video"
+        self.settings["container"] = self._get_checked("_rb_container", "mp4")
+        self.settings["audio_mode"] = self._get_checked("_rb_audio_mode", "best")
+        self.settings["audio_codec"] = self._get_checked("_rb_audio_codec", "aac")
+        self.settings["mark_settings"] = self.mark_check.isChecked()
+        settings.save(self.settings)
+
+        # останавливаем фоновые штуки
+        if getattr(self, "_falling_fx", None):
+            try:
+                self._falling_fx.stop()
+            except Exception:
+                pass
+        if getattr(self, "_glow_timer", None):
+            self._glow_timer.stop()
+        if self._tray_icon:
+            try:
+                self._tray_icon.hide()
+            except Exception:
+                pass
+
+        # --- перезапуск ---
+        import subprocess
+
+        if getattr(sys, "frozen", False):
+            # запущено из exe
+            QApplication.quit()
+            subprocess.Popen([sys.executable])
+        else:
+            # запущено из скрипта
+            script = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "downloader_qt.py"
+            )
+            QApplication.quit()
+            subprocess.Popen([sys.executable, script])
+
 
     def _show_holiday_toast(self):
         try:
@@ -2489,17 +2575,21 @@ class ThemeDialog(QDialog):
             QTimer.singleShot(50, lambda: ThemeDialog(self.parent_app).exec())
 
     def _set_theme(self, name):
-        """Применяет тему и закрывает диалог."""
-        # перечитываем конфиг, чтобы не потерять custom_themes
+        """Применяет тему с анимацией и перезапуском."""
         from modules import settings as _settings_mod
+
+        # сохраняем
         fresh = _settings_mod.load()
         fresh["theme"] = name
         _settings_mod.save(fresh)
-        # обновляем память
         self.parent_app.settings["theme"] = name
         self.parent_app.settings["custom_themes"] = fresh.get("custom_themes", {})
-        QMessageBox.information(self, "Тема", "Тема применена. Перезапусти приложение.")
+
+        # закрываем диалог выбора темы
         self.accept()
+
+        # показываем оверлей и перезапускаем
+        QTimer.singleShot(50, self.parent_app._restart_with_animation)
 
 
 class QtToast(QWidget):

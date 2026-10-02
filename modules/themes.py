@@ -167,21 +167,6 @@ THEMES = {
 }
 
 
-# регистрируем кастомные темы при импорте
-try:
-    from modules import theme_manager
-    theme_manager.register_custom_themes(THEMES)
-except Exception as _e:
-    print(f"⚠️ Не удалось загрузить кастомные темы: {_e}")
-
-
 def get_theme(name):
     """Возвращает палитру по имени. Если нет — тёмная."""
-    # если кастомной темы нет — пробуем перечитать конфиг
-    if name not in THEMES:
-        try:
-            from modules import theme_manager
-            theme_manager.register_custom_themes(THEMES)
-        except Exception:
-            pass
     return THEMES.get(name, THEMES["dark"])
