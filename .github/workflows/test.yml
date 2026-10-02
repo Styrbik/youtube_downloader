@@ -1,27 +1,19 @@
-name: Build & Release
+name: Test Build
 
 on:
-  push:
-    tags:
-      - 'v*'  # запускается при пуше тега v0.5.1, v0.6.0 и т.д.
-
-permissions:
-  contents: write
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
-      - name: Install dependencies
+      - name: Install deps
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
@@ -36,17 +28,12 @@ jobs:
           $ffmpeg = Get-ChildItem -Path ffmpeg_tmp -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
           Copy-Item $ffmpeg.FullName -Destination ffmpeg.exe
           Remove-Item -Recurse -Force ffmpeg.zip, ffmpeg_tmp
-          Write-Host "ffmpeg.exe downloaded: $((Get-Item ffmpeg.exe).Length / 1MB) MB"
 
-      - name: Build exe
+      - name: Build
         run: pyinstaller YouTubeDownloader.spec
 
-      - name: Prepare zip
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Path release -Force
-          Copy-Item dist\YouTubeDownloader.exe release\
-          Copy-Item CHANGELOG.md release\
-          Copy-Item README.md release\
-          Copy-Item requirements.txt release\
-          Compress-Archive -Path release\* -DestinationPath YouTubeDownloader.zip -Force
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: YouTubeDownloader-test
+          path: dist/YouTubeDownloader.exe
