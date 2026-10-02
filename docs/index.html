@@ -593,6 +593,50 @@
       box-shadow: 0 0 12px rgba(230, 33, 23, 0.6);
     }
 
+    /* ============ ПРАЗДНИЧНЫЕ ТЕМЫ ============ */
+    .holiday-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .holiday-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .holiday-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .holiday-card img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .holiday-card h4 {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--fg);
+      padding: 16px 20px 8px;
+    }
+
+    .holiday-card p {
+      color: var(--fg-dim);
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 0 20px 20px;
+    }
+
     /* ============ CHANGELOG ============ */
     .changelog-box {
       background: var(--bg-card);
@@ -885,6 +929,10 @@
       .carousel-dots {
         gap: 8px;
       }
+
+      .holiday-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
@@ -903,6 +951,7 @@
         <a href="#versions">Версии</a>
         <a href="#features">Возможности</a>
         <a href="#screenshots">Скриншоты</a>
+        <a href="#holidays">Праздники</a>
         <a href="#changelog">Что нового</a>
         <a href="#faq">FAQ</a>
         <a href="https://github.com/Styrbik/youtube_downloader" class="btn-nav">GitHub</a>
@@ -1072,6 +1121,40 @@
     </div>
   </section>
 
+  <!-- ПРАЗДНИЧНЫЕ ТЕМЫ -->
+  <section class="section" id="holidays">
+    <div class="container">
+      <h2 class="section-title animate">Праздничные темы</h2>
+      <p class="section-subtitle animate">Автоматически включаются в свой день — с падающими объектами</p>
+
+      <div class="holiday-grid">
+        <div class="holiday-card animate">
+          <img src="screenshots/theme_halloween.png" alt="Хэллоуин">
+          <h4>&#127875; Хэллоуин</h4>
+          <p>31 октября — падающие тыквы, призраки и мрачные оранжево-чёрные цвета.</p>
+        </div>
+
+        <div class="holiday-card animate">
+          <img src="screenshots/theme_newyear.png" alt="Новый год">
+          <h4>&#127876; Новый год</h4>
+          <p>31 декабря — снежинки, ёлки и звёзды в зелёно-красной гамме.</p>
+        </div>
+
+        <div class="holiday-card animate">
+          <img src="screenshots/theme_feb14.png" alt="14 февраля">
+          <h4>&#10084;&#65039; 14 февраля</h4>
+          <p>День влюблённых — падающие сердечки и розы на розово-красном фоне.</p>
+        </div>
+
+        <div class="holiday-card animate">
+          <img src="screenshots/theme_april12.png" alt="12 апреля">
+          <h4>&#128640; 12 апреля</h4>
+          <p>День космонавтики — ракеты, звёзды и планеты в космической синеве.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ЧТО НОВОГО (CHANGELOG С GITHUB) -->
   <section class="section" id="changelog">
     <div class="container">
@@ -1226,78 +1309,46 @@
     const CHANGELOG_URL = 'https://raw.githubusercontent.com/Styrbik/youtube_downloader/main/CHANGELOG.md';
 
     function renderMarkdown(md) {
-      // Простой рендер Markdown → HTML (только нужное: ##, ###, - , **)
       const lines = md.split('\n');
       let html = '';
       let inList = false;
 
       for (let line of lines) {
-        // Заголовок ## (но не #)
         if (/^## /.test(line)) {
-          if (inList) {
-            html += '</ul>';
-            inList = false;
-          }
+          if (inList) { html += '</ul>'; inList = false; }
           html += `<h2>${line.replace(/^## /, '')}</h2>`;
         }
-        // Заголовок ###
         else if (/^### /.test(line)) {
-          if (inList) {
-            html += '</ul>';
-            inList = false;
-          }
+          if (inList) { html += '</ul>'; inList = false; }
           html += `<h3>${line.replace(/^### /, '')}</h3>`;
         }
-        // Заголовок # (главный)
         else if (/^# /.test(line)) {
-          if (inList) {
-            html += '</ul>';
-            inList = false;
-          }
-          // пропускаем главный заголовок "# Changelog"
+          if (inList) { html += '</ul>'; inList = false; }
         }
-        // Список "- ..."
         else if (/^- /.test(line)) {
-          if (!inList) {
-            html += '<ul>';
-            inList = true;
-          }
+          if (!inList) { html += '<ul>'; inList = true; }
           let text = line.replace(/^- /, '');
-          // жирный **text**
           text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
           html += `<li>${text}</li>`;
         }
-        // Пустая строка
         else if (line.trim() === '') {
-          if (inList) {
-            html += '</ul>';
-            inList = false;
-          }
+          if (inList) { html += '</ul>'; inList = false; }
         }
-        // Обычный текст
         else {
-          if (inList) {
-            html += '</ul>';
-            inList = false;
-          }
+          if (inList) { html += '</ul>'; inList = false; }
           let text = line;
           text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
           html += `<p>${text}</p>`;
         }
       }
 
-      if (inList) {
-        html += '</ul>';
-      }
-
+      if (inList) { html += '</ul>'; }
       return html;
     }
 
     fetch(CHANGELOG_URL)
       .then(response => {
-        if (!response.ok) {
-          throw new Error('Не удалось загрузить');
-        }
+        if (!response.ok) throw new Error('Не удалось загрузить');
         return response.text();
       })
       .then(md => {
@@ -1319,10 +1370,8 @@
     document.querySelectorAll('.faq-item').forEach(item => {
       const q = item.querySelector('.faq-q');
       q.addEventListener('click', () => {
-        // закрываем все остальные
         const wasOpen = item.classList.contains('open');
         document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
-        // если был закрыт — открываем
         if (!wasOpen) {
           item.classList.add('open');
         }
@@ -1336,19 +1385,14 @@
 
     fetch(RELEASE_API)
       .then(response => {
-        if (!response.ok) {
-          throw new Error('Не удалось загрузить релиз');
-        }
+        if (!response.ok) throw new Error('Не удалось загрузить релиз');
         return response.json();
       })
       .then(data => {
         const badge = document.getElementById('version-badge');
-
-        // name = "v0.5.0 — QT Edition", fallback на tag_name если name пустой
         const releaseName = data.name || data.tag_name || 'unknown';
         badge.innerHTML = `&#9889; ${releaseName}`;
 
-        // (опционально) обновляем ссылки "Скачать" на последний релиз
         const downloadUrl = data.assets && data.assets.length > 0
           ? data.assets[0].browser_download_url
           : null;
@@ -1378,43 +1422,28 @@
     let currentSlide = 0;
     let autoplayTimer = null;
     let isPaused = false;
-    const AUTOPLAY_DELAY = 4000; // 4 секунды
+    const AUTOPLAY_DELAY = 4000;
 
     function goToSlide(index) {
-      // зацикливаем
-      if (index < 0) {
-        index = slides.length - 1;
-      }
-      if (index >= slides.length) {
-        index = 0;
-      }
+      if (index < 0) index = slides.length - 1;
+      if (index >= slides.length) index = 0;
 
       currentSlide = index;
-
-      // сдвигаем весь трек влево/вправо
       const offset = -index * 100;
       track.style.transform = `translateX(${offset}%)`;
 
-      // обновляем точки
       dots.forEach((dot, i) => {
         dot.classList.toggle('active', i === index);
       });
     }
 
-    function nextSlide() {
-      goToSlide(currentSlide + 1);
-    }
-
-    function prevSlide() {
-      goToSlide(currentSlide - 1);
-    }
+    function nextSlide() { goToSlide(currentSlide + 1); }
+    function prevSlide() { goToSlide(currentSlide - 1); }
 
     function startAutoplay() {
       stopAutoplay();
       autoplayTimer = setInterval(() => {
-        if (!isPaused) {
-          nextSlide();
-        }
+        if (!isPaused) nextSlide();
       }, AUTOPLAY_DELAY);
     }
 
@@ -1425,18 +1454,9 @@
       }
     }
 
-    // клики по кнопкам
-    btnPrev.addEventListener('click', () => {
-      prevSlide();
-      startAutoplay(); // сброс таймера
-    });
+    btnPrev.addEventListener('click', () => { prevSlide(); startAutoplay(); });
+    btnNext.addEventListener('click', () => { nextSlide(); startAutoplay(); });
 
-    btnNext.addEventListener('click', () => {
-      nextSlide();
-      startAutoplay();
-    });
-
-    // клики по точкам
     dots.forEach(dot => {
       dot.addEventListener('click', () => {
         const index = parseInt(dot.dataset.slide, 10);
@@ -1445,16 +1465,9 @@
       });
     });
 
-    // пауза при наведении
-    carousel.addEventListener('mouseenter', () => {
-      isPaused = true;
-    });
+    carousel.addEventListener('mouseenter', () => { isPaused = true; });
+    carousel.addEventListener('mouseleave', () => { isPaused = false; });
 
-    carousel.addEventListener('mouseleave', () => {
-      isPaused = false;
-    });
-
-    // старт
     goToSlide(0);
     startAutoplay();
   </script>
