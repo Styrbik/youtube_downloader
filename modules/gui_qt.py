@@ -473,6 +473,22 @@ class DownloaderApp(QMainWindow):
             self._holiday_mode = True
             self._holiday_theme = "march8"
             self._holiday_greeting = "🌸 С 8 МАРТА!\nСкачай что-нибудь для мамы!"
+        elif today.month == 9 and today.day == 1:
+            self._holiday_mode = True
+            self._holiday_theme = "september1"
+            self._holiday_greeting = "🎒 С ДНЁМ ЗНАНИЙ!\nУчись, но не забывай качать!"
+        elif today.month == 2 and today.day == 14:
+            self._holiday_mode = True
+            self._holiday_theme = "feb14"
+            self._holiday_greeting = "❤️ С ДНЁМ ВЛЮБЛЁННЫХ!\nСкачай что-нибудь для второй половинки!"
+        elif today.month == 4 and today.day == 12:
+            self._holiday_mode = True
+            self._holiday_theme = "april12"
+            self._holiday_greeting = "🚀 С ДНЁМ КОСМОНАВТИКИ!\nПоехали!"
+        elif today.month == 5 and today.day == 1:
+            self._holiday_mode = True
+            self._holiday_theme = "may1"
+            self._holiday_greeting = "🎉 С ПРАЗДНИКОМ ВЕСНЫ И ТРУДА!\nОтдыхай и качай!"
 
         theme_to_apply = self._holiday_theme if self._holiday_mode else self._real_theme
         _apply_theme(theme_to_apply)
@@ -504,6 +520,9 @@ class DownloaderApp(QMainWindow):
         self._is_maximized = False
         self._thumb_pixmap = None
         self._tray_icon = None
+        self._saved_geometry = None
+        self._minimize_anim_running = False
+        self._restore_anim_running = False
 
         self._build_ui()
         self._apply_qss()
@@ -533,6 +552,51 @@ class DownloaderApp(QMainWindow):
     def _check_cookies_on_start(self):
         # Куки отключены — модуль переименован
         pass
+        
+    def changeEvent(self, event):
+        """Ловим разворачивание из панели задач для анимации."""
+        if event.type() == event.Type.WindowStateChange:
+            if self.windowState() & Qt.WindowState.WindowMinimized:
+                # окно сворачивается — анимацию делает _animate_minimize
+                pass
+            else:
+                # окно разворачивается — анимируем
+                if not getattr(self, "_restore_anim_running", False):
+                    self._animate_restore()
+
+        super().changeEvent(event)
+
+    def _animate_restore(self):
+        """Плавное разворачивание — только opacity."""
+        if self._restore_anim_running:
+            return
+        self._restore_anim_running = True
+
+        # ← восстанавливаем состояние maximized/normal
+        if getattr(self, "_was_maximized", False):
+            self.showMaximized()
+            self._is_maximized = True
+        else:
+            # если НЕ был максимизирован — возвращаем сохранённую геометрию
+            if self._saved_geometry is not None:
+                self.setGeometry(self._saved_geometry)
+            self._is_maximized = False
+
+        # fade-in
+        self.setWindowOpacity(0.0)
+        self._restore_opacity = QPropertyAnimation(self, b"windowOpacity")
+        self._restore_opacity.setDuration(150)
+        self._restore_opacity.setStartValue(0.0)
+        self._restore_opacity.setEndValue(1.0)
+        self._restore_opacity.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+        def _done():
+            self.setWindowOpacity(1.0)
+            self._restore_anim_running = False
+
+        self._restore_opacity.finished.connect(_done)
+        self._restore_opacity.start()
+        self._restore_anim = self._restore_opacity
 
     # ---------- glow ----------
     def _update_glow(self):
@@ -964,7 +1028,36 @@ class DownloaderApp(QMainWindow):
             self._is_maximized = True
 
     def _minimize_to_tray(self):
-        self.hide()
+        """Плавное сворачивание — только opacity, без geometry."""
+        self._animate_minimize()
+
+    def _animate_minimize(self):
+        """Просто fade-out, потом showMinimized()."""
+        if self._minimize_anim_running:
+            return
+        self._minimize_anim_running = True
+
+        # запоминаем состояние (нормальное/максимизированное)
+        self._was_maximized = self._is_maximized
+
+        # запоминаем геометрию (только если НЕ максимизированы)
+        if not self._is_maximized:
+            self._saved_geometry = self.geometry()
+
+        self._minimize_opacity = QPropertyAnimation(self, b"windowOpacity")
+        self._minimize_opacity.setDuration(150)
+        self._minimize_opacity.setStartValue(1.0)
+        self._minimize_opacity.setEndValue(0.0)
+        self._minimize_opacity.setEasingCurve(QEasingCurve.Type.InCubic)
+        self._minimize_opacity.finished.connect(self._after_minimize_anim)
+        self._minimize_opacity.start()
+        self._minimize_anim = self._minimize_opacity
+
+    def _after_minimize_anim(self):
+        """После fade-out — нативное сворачивание."""
+        self.showMinimized()
+        self.setWindowOpacity(1.0)
+        self._minimize_anim_running = False
 
     # --------------------------------------------------------
     #                    ТРЕЙ
@@ -1682,7 +1775,8 @@ class DownloaderApp(QMainWindow):
         self.settings["audio_mode"] = self._get_checked("_rb_audio_mode", "best")
         self.settings["audio_codec"] = self._get_checked("_rb_audio_codec", "aac")
         self.settings["mark_settings"] = self.mark_check.isChecked()
-        settings.save(self.settings)
+        # НЕ сохраняем настройки при закрытии (они уже сохранены при действиях)
+        print("DEBUG: _on_close — сохранение отключено")
 
         if getattr(self, "_glow_timer", None):
             self._glow_timer.stop()
@@ -2131,46 +2225,279 @@ class ThemeDialog(QDialog):
     def __init__(self, parent):
         super().__init__(parent)
         self.setWindowTitle("Выбор темы")
-        self.setFixedSize(360, 340)
+        self.setFixedSize(400, 780)
         self.parent_app = parent
+        self.selected_theme_id = self.parent_app.settings.get("theme", "dark")
+
+        self._build_ui()
+
+    def _build_ui(self):
+        # очищаем
+        if self.layout() is not None:
+            old = self.layout()
+            while old.count():
+                item = old.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setContentsMargins(20, 16, 20, 16)
         layout.setSpacing(8)
 
         title = QLabel("🎨 Выбери тему")
-        title.setStyleSheet(f"color: {FG}; font-size: 16px; font-weight: bold;")
+        title.setStyleSheet(f"color: {FG}; font-size: 15px; font-weight: bold;")
         layout.addWidget(title)
 
-        current = parent.settings.get("theme", "dark")
-        for key, theme in THEMES.items():
-            is_current = (key == current)
-            label = theme["name"] + ("  ✓" if is_current else "")
-            b = QPushButton(label)
-            b.setMinimumHeight(44)
-            b.setStyleSheet(f"""
+        # ==== Контейнер с абсолютным позиционированием ====
+        themes_container = QWidget()
+        themes_container.setStyleSheet("background: transparent;")
+
+        from modules.themes import THEMES
+        from modules import theme_manager
+
+        all_themes = []
+        for k, t in THEMES.items():
+            if k.startswith("custom_"):
+                continue  # кастомные добавим отдельно
+            all_themes.append((k, t["name"], False))
+        for t in theme_manager.list_custom_themes():
+            all_themes.append((t["id"], t["name"], True))
+
+        # высота обёртки под каждую тему
+        btn_h = 34
+        gap = 8
+        step = btn_h + gap
+        # с запасом на выезд (по 6px сверху/снизу)
+        container_h = step * len(all_themes) + 20
+        themes_container.setFixedHeight(container_h)
+
+        # скролл — если всё равно не влезет
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        scroll_inner = QWidget()
+        scroll_inner.setStyleSheet("background: transparent;")
+        scroll_layout = QVBoxLayout(scroll_inner)
+        scroll_layout.setContentsMargins(0, 0, 0, 0)
+        scroll_layout.addWidget(themes_container)
+        scroll_layout.addStretch()
+        scroll.setWidget(scroll_inner)
+
+        current = self.parent_app.settings.get("theme", "dark")
+        self._theme_buttons = []
+
+        y = 10  # начальный отступ сверху
+        for key, name, is_custom in all_themes:
+            display = name + ("  ✓" if key == current else "")
+
+            b = QPushButton(display, themes_container)
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            b.setGeometry(0, y, 360, btn_h)
+            b.setMouseTracking(True)
+
+            # цвета
+            if is_custom:
+                t_data = theme_manager.get_custom_theme(key)
+                colors = theme_manager.build_full_theme(t_data["colors"]) if t_data else {}
+                card = colors.get("BG_CARD", BG_CARD)
+                accent = colors.get("ACCENT", ACCENT)
+                fg = colors.get("FG", FG)
+                border = colors.get("BORDER", BORDER)
+                bg_in = colors.get("BG_INPUT", BG_INPUT)
+            else:
+                t = THEMES[key]
+                card = t["BG_CARD"]
+                accent = t["ACCENT"]
+                fg = t["FG"]
+                border = t["BORDER"]
+                bg_in = t["BG_INPUT"]
+
+            normal_style = f"""
                 QPushButton {{
-                    background-color: {theme["BG_CARD"]};
-                    color: {theme["FG"]};
-                    border: 1px solid {theme["BORDER"]};
-                    border-radius: 10px;
+                    background-color: {card};
+                    color: {fg};
+                    border: 1px solid {border};
+                    border-radius: 9px;
                     text-align: left;
-                    padding-left: 16px;
-                    font-size: 13px;
+                    padding-left: 14px;
+                    padding-right: 14px;
+                    font-size: 12px;
                     font-weight: bold;
                 }}
-                QPushButton:hover {{
-                    border: 2px solid {theme["ACCENT"]};
-                }}
-            """)
-            b.clicked.connect(lambda _, k=key: self._set_theme(k))
-            layout.addWidget(b)
+            """
 
-        layout.addStretch()
+            hover_style = f"""
+                QPushButton {{
+                    background-color: {bg_in};
+                    color: {fg};
+                    border: 2px solid {accent};
+                    border-radius: 9px;
+                    text-align: left;
+                    padding-left: 13px;
+                    padding-right: 13px;
+                    font-size: 12px;
+                    font-weight: bold;
+                }}
+            """
+
+            b.setStyleSheet(normal_style)
+            b._normal_style = normal_style
+            b._hover_style = hover_style
+            b._base_y = y
+            b._accent = accent
+            b._is_hovered = False
+
+            # hover-анимация
+            def _make_handlers(btn):
+                def on_enter(e):
+                    if btn._is_hovered:
+                        return
+                    btn._is_hovered = True
+                    btn.raise_()
+
+                    shadow = QGraphicsDropShadowEffect(btn)
+                    shadow.setBlurRadius(24)
+                    shadow.setColor(QColor(btn._accent))
+                    shadow.setOffset(0, 6)
+                    try:
+                        shadow.setOpacity(0.6)
+                    except Exception:
+                        pass
+                    btn.setGraphicsEffect(shadow)
+
+                    btn.setStyleSheet(btn._hover_style)
+
+                    anim = QPropertyAnimation(btn, b"pos")
+                    anim.setDuration(150)
+                    anim.setStartValue(btn.pos())
+                    anim.setEndValue(QPoint(0, btn._base_y - 6))
+                    anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+                    anim.start()
+                    btn._anim = anim
+
+                def on_leave(e):
+                    if not btn._is_hovered:
+                        return
+                    btn._is_hovered = False
+                    btn.setGraphicsEffect(None)
+                    btn.setStyleSheet(btn._normal_style)
+
+                    anim = QPropertyAnimation(btn, b"pos")
+                    anim.setDuration(150)
+                    anim.setStartValue(btn.pos())
+                    anim.setEndValue(QPoint(0, btn._base_y))
+                    anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+                    anim.start()
+                    btn._anim = anim
+
+                btn.enterEvent = on_enter
+                btn.leaveEvent = on_leave
+
+            _make_handlers(b)
+
+            b.clicked.connect(lambda _, k=key: self._set_theme(k))
+            self._theme_buttons.append((b, key, is_custom))
+
+            y += step
+
+        # растягиваем по ширине
+        def _resize(event, container=themes_container, btns=self._theme_buttons):
+            w = container.width()
+            for b, _, _ in btns:
+                b.setFixedWidth(w)
+
+        themes_container.resizeEvent = _resize
+
+        layout.addWidget(scroll, stretch=1)
+
+        # ---- Кнопки внизу ----
+        btn_row = QHBoxLayout()
+
+        b_create = QPushButton("➕ Создать")
+        b_create.setCursor(Qt.CursorShape.PointingHandCursor)
+        b_create.clicked.connect(self._create_theme)
+        btn_row.addWidget(b_create)
+
+        b_delete = QPushButton("🗑 Удалить")
+        b_delete.setCursor(Qt.CursorShape.PointingHandCursor)
+        b_delete.clicked.connect(self._delete_theme)
+        btn_row.addWidget(b_delete)
+
+        btn_row.addStretch()
+
+        b_close = QPushButton("Закрыть")
+        b_close.clicked.connect(self.accept)
+        btn_row.addWidget(b_close)
+
+        layout.addLayout(btn_row)
+
+    def _create_theme(self):
+        try:
+            from modules.theme_configurator import ThemeConfiguratorDialog
+        except ImportError as e:
+            QMessageBox.warning(self, "Ошибка", f"Конфигуратор недоступен:\n{e}")
+            return
+
+        dlg = ThemeConfiguratorDialog(self.parent_app)
+        if dlg.exec() == QDialog.DialogCode.Accepted and dlg.saved_id:
+            # обновляем settings в памяти
+            from modules import settings as _settings_mod
+            fresh = _settings_mod.load()
+            self.parent_app.settings["custom_themes"] = fresh.get("custom_themes", {})
+            self.accept()
+            QTimer.singleShot(50, lambda: ThemeDialog(self.parent_app).exec())
+
+    def _delete_theme(self):
+        """Удаляет ТЕКУЩУЮ кастомную тему."""
+        from modules import theme_manager
+
+        current = self.parent_app.settings.get("theme", "dark")
+        custom = theme_manager.get_custom_theme(current)
+
+        if not custom:
+            QMessageBox.information(
+                self, "Удалить",
+                "Сейчас выбрана стандартная тема.\n"
+                "Чтобы удалить свою — сначала выбери её (клик).\n"
+                "Потом жми 🗑 Удалить."
+            )
+            return
+
+        reply = QMessageBox.question(
+            self, "Удалить тему",
+            f"Удалить тему «{custom['name']}»?"
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        if theme_manager.delete_custom_theme(current):
+            # перечитываем конфиг (в файле уже удалено)
+            import importlib
+            from modules import settings as settings_module
+            fresh = settings_module.load()
+            self.parent_app.settings["custom_themes"] = fresh.get("custom_themes", {})
+            self.parent_app.settings["theme"] = "dark"
+            settings.save(self.parent_app.settings)
+            QMessageBox.information(
+                self, "Тема удалена",
+                "Тема удалена. Применена тёмная тема.\n"
+                "Перезапусти приложение."
+            )
+            self.accept()
+            QTimer.singleShot(50, lambda: ThemeDialog(self.parent_app).exec())
 
     def _set_theme(self, name):
+        """Применяет тему и закрывает диалог."""
+        # перечитываем конфиг, чтобы не потерять custom_themes
+        from modules import settings as _settings_mod
+        fresh = _settings_mod.load()
+        fresh["theme"] = name
+        _settings_mod.save(fresh)
+        # обновляем память
         self.parent_app.settings["theme"] = name
-        settings.save(self.parent_app.settings)
+        self.parent_app.settings["custom_themes"] = fresh.get("custom_themes", {})
         QMessageBox.information(self, "Тема", "Тема применена. Перезапусти приложение.")
         self.accept()
 

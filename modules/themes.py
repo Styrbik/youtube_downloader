@@ -104,9 +104,84 @@ THEMES = {
         "DISABLED": "#3a0f2a",
         "DISABLED_FG": "#886677",
     },
+    "september1": {
+        "name": "🎒 1 сентября",
+        "BG": "#1a1408",
+        "BG_CARD": "#2a2210",
+        "BG_INPUT": "#3a3018",
+        "FG": "#ffeedd",
+        "FG_DIM": "#aa9070",
+        "ACCENT": "#ff8c00",
+        "ACCENT_HOVER": "#ffaa33",
+        "ACCENT_PRESS": "#cc5500",
+        "BORDER": "#4a3010",
+        "BORDER_HOVER": "#ff8c00",
+        "DISABLED": "#2a2210",
+        "DISABLED_FG": "#886644",
+    },
+    "feb14": {
+        "name": "❤️ 14 февраля",
+        "BG": "#1a0a10",
+        "BG_CARD": "#2a1018",
+        "BG_INPUT": "#3a1820",
+        "FG": "#ffe0ea",
+        "FG_DIM": "#aa7088",
+        "ACCENT": "#ff2d6f",
+        "ACCENT_HOVER": "#ff6699",
+        "ACCENT_PRESS": "#cc1555",
+        "BORDER": "#4a1830",
+        "BORDER_HOVER": "#ff2d6f",
+        "DISABLED": "#2a1018",
+        "DISABLED_FG": "#885566",
+    },
+    "april12": {
+        "name": "🚀 12 апреля",
+        "BG": "#05050f",
+        "BG_CARD": "#0f0f1f",
+        "BG_INPUT": "#1a1a2f",
+        "FG": "#dde5ff",
+        "FG_DIM": "#7080aa",
+        "ACCENT": "#4d8cff",
+        "ACCENT_HOVER": "#77aaff",
+        "ACCENT_PRESS": "#2a66cc",
+        "BORDER": "#1a2a4a",
+        "BORDER_HOVER": "#4d8cff",
+        "DISABLED": "#0f0f1f",
+        "DISABLED_FG": "#556688",
+    },
+    "may1": {
+        "name": "🎉 1 мая",
+        "BG": "#0a1a08",
+        "BG_CARD": "#102a10",
+        "BG_INPUT": "#1a3a18",
+        "FG": "#ddffdd",
+        "FG_DIM": "#80aa80",
+        "ACCENT": "#4dd94d",
+        "ACCENT_HOVER": "#77ff77",
+        "ACCENT_PRESS": "#2aaa2a",
+        "BORDER": "#1a4a1a",
+        "BORDER_HOVER": "#4dd94d",
+        "DISABLED": "#102a10",
+        "DISABLED_FG": "#668866",
+    },
 }
+
+
+# регистрируем кастомные темы при импорте
+try:
+    from modules import theme_manager
+    theme_manager.register_custom_themes(THEMES)
+except Exception as _e:
+    print(f"⚠️ Не удалось загрузить кастомные темы: {_e}")
 
 
 def get_theme(name):
     """Возвращает палитру по имени. Если нет — тёмная."""
+    # если кастомной темы нет — пробуем перечитать конфиг
+    if name not in THEMES:
+        try:
+            from modules import theme_manager
+            theme_manager.register_custom_themes(THEMES)
+        except Exception:
+            pass
     return THEMES.get(name, THEMES["dark"])
