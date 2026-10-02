@@ -95,7 +95,7 @@ def get_active_icon_path():
     
     # Версия приложения — единый источник правды
 APP_VERSION = "0.5.1"
-APP_BUILD_NAME = ""Themes & Fixes""
+APP_BUILD_NAME = "Themes & Fixes"
 APP_AUTHOR = "Styrbik"
 APP_DESCRIPTION = "YouTube Downloader"
 APP_COPYRIGHT = "© 2026 Styrbik Corp."
