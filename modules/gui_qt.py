@@ -26,6 +26,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import (
     Qt, QTimer, QPropertyAnimation, QEasingCurve, QSize, QPoint,
     QParallelAnimationGroup, QSequentialAnimationGroup, pyqtSignal, QRect,
+    QObject, QEvent,
 )
 from PyQt6.QtGui import (
     QIcon, QPixmap, QColor, QPainter, QAction, QFont,
@@ -48,6 +49,11 @@ try:
     HAS_BACKGROUND = True
 except ImportError:
     HAS_BACKGROUND = False
+try:
+    from modules.frost_fx_qt import FrostFX
+    HAS_FROST_FX = True
+except ImportError:
+    HAS_FROST_FX = False
 from modules.themes import THEMES, get_theme
 from config import (
     DOWNLOADS_DIR, ICON_PATH, CHANGELOG_PATH, COVER_PATH,
@@ -396,6 +402,165 @@ def animate_slide_in(widget, offset_y=20, duration=400):
     anim.start()
     widget._opacity_anim = anim
     return anim
+    
+class AchievementsDialog(QDialog):
+    """Окно достижений."""
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setWindowTitle("🏆 Достижения")
+        self.setFixedSize(600, 720)
+        self.parent_app = parent
+
+        from modules import achievements as ach_mod
+
+        # скролл на всю панель
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        outer.addWidget(scroll)
+
+        inner = QWidget()
+        layout = QVBoxLayout(inner)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(10)
+        scroll.setWidget(inner)
+
+        # заголовок + прогресс
+        settings_data = self.parent_app.settings
+        unlocked = ach_mod.get_unlocked_count(settings_data)
+        total = ach_mod.get_total_count()
+
+        title = QLabel(f"🏆 Достижения  [{unlocked}/{total}]")
+        title.setStyleSheet(f"color: {FG}; font-size: 18px; font-weight: bold;")
+        layout.addWidget(title)
+
+        # прогресс-бар
+        progress = QProgressBar()
+        progress.setRange(0, total)
+        progress.setValue(unlocked)
+        progress.setTextVisible(False)
+        progress.setFixedHeight(12)
+        layout.addWidget(progress)
+
+        # группируем по категориям
+        categories = {
+            "download": "📥 Скачивание",
+            "audio": "🎵 Аудио",
+            "video": "🎬 Видео",
+            "theme": "🎨 Темы",
+            "holiday": "🎄 Праздники",
+            "time": "⏰ Время",
+            "secret": "🎮 Секретные",
+        }
+
+        for cat_key, cat_name in categories.items():
+            # заголовок категории
+            cat_label = QLabel(cat_name)
+            cat_label.setStyleSheet(f"color: {FG}; font-size: 14px; font-weight: bold; padding-top: 10px;")
+            layout.addWidget(cat_label)
+
+            # достижения в категории
+            for ach_id, ach in ach_mod.ACHIEVEMENTS.items():
+                if ach.get("category") != cat_key:
+                    continue
+
+                is_open = ach_mod.is_unlocked(settings_data, ach_id)
+                progress_val = ach_mod.get_progress(settings_data, ach_id)
+                target = ach["target"]
+
+                # карточка
+                card = QFrame()
+                card.setObjectName("card")
+                card.setStyleSheet(f"""
+                    QFrame#card {{
+                        background-color: {BG_CARD};
+                        border: 1px solid {BORDER};
+                        border-radius: 10px;
+                    }}
+                """)
+
+                card_layout = QHBoxLayout(card)
+                card_layout.setContentsMargins(14, 10, 14, 10)
+                card_layout.setSpacing(10)
+
+                # иконка статуса
+                status_icon = QLabel("✓" if is_open else "🔒")
+                status_icon.setStyleSheet(
+                    f"color: {'#4ade80' if is_open else FG_DIM}; "
+                    f"font-size: 20px; font-weight: bold;"
+                )
+                status_icon.setFixedWidth(30)
+                card_layout.addWidget(status_icon)
+
+                # текст
+                text_col = QVBoxLayout()
+                text_col.setSpacing(2)
+
+                name_label = QLabel(ach["name"])
+                name_label.setStyleSheet(
+                    f"color: {FG if is_open else FG_DIM}; "
+                    f"font-size: 13px; font-weight: bold;"
+                )
+                text_col.addWidget(name_label)
+
+                desc_label = QLabel(ach["desc"])
+                desc_label.setStyleSheet(
+                    f"color: {FG_DIM}; font-size: 11px;"
+                )
+                text_col.addWidget(desc_label)
+
+                card_layout.addLayout(text_col, stretch=1)
+
+                # прогресс (если не открыто и target > 1)
+                if not is_open and target > 1:
+                    prog_label = QLabel(f"{progress_val}/{target}")
+                    prog_label.setStyleSheet(
+                        f"color: {FG_DIM}; font-size: 11px; font-weight: bold;"
+                    )
+                    card_layout.addWidget(prog_label)
+                elif is_open:
+                    done_label = QLabel("✓")
+                    done_label.setStyleSheet(
+                        f"color: #4ade80; font-size: 14px; font-weight: bold;"
+                    )
+                    card_layout.addWidget(done_label)
+
+                layout.addWidget(card)
+
+        layout.addStretch()
+
+        # кнопки
+        btn_row = QHBoxLayout()
+
+        b_reset = QPushButton("🗑 Сбросить все")
+        b_reset.clicked.connect(self._reset_all)
+        btn_row.addWidget(b_reset)
+
+        btn_row.addStretch()
+
+        b_close = QPushButton("Закрыть")
+        b_close.clicked.connect(self.accept)
+        btn_row.addWidget(b_close)
+
+        layout.addLayout(btn_row)
+
+    def _reset_all(self):
+        reply = QMessageBox.question(
+            self, "Сброс",
+            "Сбросить ВСЕ достижения?"
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            from modules import achievements as ach_mod
+            from modules import settings as settings_mod
+            ach_mod.reset_all(self.parent_app.settings)
+            settings_mod.save(self.parent_app.settings)
+            QMessageBox.information(self, "Готово", "Достижения сброшены.")
+            self.accept()
+            QTimer.singleShot(50, lambda: AchievementsDialog(self.parent_app).exec())
 
 
 # ============================================================
@@ -419,6 +584,24 @@ class GlowButton(QPushButton):
         self._anim = QPropertyAnimation(self._glow, b"blurRadius")
         self._anim.setDuration(180)
         self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self.clicked.connect(self._play_click_sound)
+        
+    def _play_click_sound(self):
+        """Играет клик или хруст льда (для Frostmourne)."""
+        try:
+            from modules import settings as _s
+            _settings = _s.load()
+            theme = _settings.get("theme", "dark")
+            forced = _settings.get("admin_forced_holiday")
+            if theme == "frostmourne" or forced == "frostmourne":
+                from modules.sounds import ice_crack
+                ice_crack()
+            else:
+                from modules.sounds import click
+                click()
+        except Exception:
+            pass
+
 
     def set_glow(self, value):
         """value: 0.0 — 1.0."""
@@ -578,6 +761,29 @@ class QualityGroup(QWidget):
 
     def clear(self):
         self.set_items([])
+        
+class ClickSoundFilter(QObject):
+    """Глобальный фильтр — играет звук при клике на любую кнопку/радио."""
+
+    def eventFilter(self, obj, event):
+        if event.type() == event.Type.MouseButtonPress:
+            # ловим кнопки, радио, чекбоксы
+            from PyQt6.QtWidgets import QPushButton, QRadioButton, QCheckBox
+            if isinstance(obj, (QPushButton, QRadioButton, QCheckBox)):
+                try:
+                    from modules import settings as _s
+                    _settings = _s.load()
+                    theme = _settings.get("theme", "dark")
+                    forced = _settings.get("admin_forced_holiday")
+                    if theme == "frostmourne" or forced == "frostmourne":
+                        from modules.sounds import ice_crack
+                        ice_crack()
+                    else:
+                        from modules.sounds import click
+                        click()
+                except Exception:
+                    pass
+        return super().eventFilter(obj, event)
 
 
 # ============================================================
@@ -593,6 +799,7 @@ class DownloaderApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.settings = settings.load()
+        self._admin_mode = self.settings.get("admin_mode", False)
         # в начале __init__ после settings.load()
         liquid = self.settings.get("liquid_glass", False)
 
@@ -615,6 +822,7 @@ class DownloaderApp(QMainWindow):
         self._real_theme = self.settings.get("theme", "dark")
         self._falling_fx = None
         self._holiday_lights = None
+        self._frost_fx = None
 
         if today.month == 10 and today.day == 31:
             self._holiday_mode = True
@@ -649,8 +857,19 @@ class DownloaderApp(QMainWindow):
             self._holiday_theme = "may1"
             self._holiday_greeting = "🎉 С ПРАЗДНИКОМ ВЕСНЫ И ТРУДА!\nОтдыхай и качай!"
 
+        # админ-форсированный праздник
+        forced = self.settings.get("admin_forced_holiday")
+        if forced:
+            self._holiday_mode = True
+            self._holiday_theme = forced
+            self._holiday_greeting = f"🎄 Тест: {forced}"
+
         theme_to_apply = self._holiday_theme if self._holiday_mode else self._real_theme
         _apply_theme(theme_to_apply)
+        
+        # если тема Frostmourne — играем "К чёрту людей!"
+        if self._real_theme == "frostmourne" or self._holiday_theme == "frostmourne":
+            QTimer.singleShot(1500, self._play_frostmourne_greeting)
 
         # Liquid Glass — прозрачность только для карточек и кнопок
         if self.settings.get("liquid_glass", False):
@@ -660,7 +879,11 @@ class DownloaderApp(QMainWindow):
                 self.settings.get("liquid_blur", 20),
             )
 
-        self.setWindowTitle(APP_TITLE)
+        # заголовок зависит от темы
+        if self._holiday_theme == "frostmourne" or self._real_theme == "frostmourne":
+            self.setWindowTitle("❄️ Frostmourne Hungers")
+        else:
+            self.setWindowTitle(APP_TITLE)
         if self.settings.get("liquid_glass", False):
             # для Acrylic нужен обычный frameless, но с прозрачным фоном
             self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
@@ -721,10 +944,36 @@ class DownloaderApp(QMainWindow):
         self._glow_timer.setInterval(30)
         self._glow_timer.timeout.connect(self._update_glow)
         self._glow_timer.start()
+        # глобальный фильтр кликов — для звука на всех кнопках
+        self._click_filter = ClickSoundFilter(self)
+        QApplication.instance().installEventFilter(self._click_filter)
+        # глобальный фильтр кликов — для звука
+        self._click_filter = ClickSoundFilter(self)
+        QApplication.instance().installEventFilter(self._click_filter)
 
     def _check_cookies_on_start(self):
         # Куки отключены — модуль переименован
         pass
+    def _open_admin_panel(self):
+        """Открывает админ-панель."""
+        # достижения: админка
+        try:
+            from modules import achievements as ach_mod
+            unlocked = ach_mod.track_admin(self.settings)
+            for ach_id in unlocked:
+                ach = ach_mod.ACHIEVEMENTS.get(ach_id, {})
+                name = ach.get("name", ach_id)
+                QTimer.singleShot(500, lambda n=name: QtToast(
+                    self, f"🏆 Достижение: {n}", duration=4000
+                ))
+        except Exception as e:
+            print(f"⚠️ Достижения (админка): {e}")
+
+        AdminPanelDialog(self).exec()
+    
+    def _open_achievements(self):
+        """Открывает окно достижений."""
+        AchievementsDialog(self).exec()
         
     def changeEvent(self, event):
         """Ловим разворачивание из панели задач для анимации."""
@@ -875,11 +1124,18 @@ class DownloaderApp(QMainWindow):
         tb_layout.setContentsMargins(10, 0, 0, 0)
         tb_layout.setSpacing(4)
 
-        tb_icon = QLabel("🎬")
+        icon_text = "🎬"
+        if self._holiday_theme == "frostmourne" or self._real_theme == "frostmourne":
+            icon_text = "❄️"
+        tb_icon = QLabel(icon_text)
         tb_icon.setStyleSheet(f"color: {ACCENT}; font-size: 14px; background: transparent;")
         tb_layout.addWidget(tb_icon)
 
-        tb_title = QLabel("YouTube Downloader")
+        # заголовок в шапке — зависит от темы
+        title_text = "YouTube Downloader"
+        if self._holiday_theme == "frostmourne" or self._real_theme == "frostmourne":
+            title_text = "❄️ Frostmourne"
+        tb_title = QLabel(title_text)
         tb_title.setStyleSheet(f"color: {FG}; font-size: 12px; font-weight: bold; background: transparent;")
         tb_layout.addWidget(tb_title)
         tb_layout.addStretch()
@@ -914,6 +1170,9 @@ class DownloaderApp(QMainWindow):
         tb_layout.addWidget(_menu_btn("⚙️ Настройки", self._open_settings, "Настройки"))
         tb_layout.addWidget(_menu_btn("🎵 Плеер", self._open_player, "Встроенный плеер"))
         tb_layout.addWidget(_menu_btn("📋 Что нового", self._open_changelog, "Changelog"))
+        tb_layout.addWidget(_menu_btn("🏆 Достижения", self._open_achievements, "Достижения"))
+        if getattr(self, "_admin_mode", False):
+            tb_layout.addWidget(_menu_btn("🔧 Админка", self._open_admin_panel, "Админ-панель"))
 
         spacer = QWidget()
         spacer.setFixedWidth(10)
@@ -1332,6 +1591,20 @@ class DownloaderApp(QMainWindow):
         if chosen:
             self.settings["output_dir"] = chosen
             self.dir_label.setText(chosen)
+        # достижения: скачивание
+        try:
+            from modules import achievements as ach_mod
+            fmt = self.selected_format or {}
+            mode = "audio" if self.rb_mode_audio.isChecked() else "video"
+            unlocked = ach_mod.track_download(self.settings, fmt, mode)
+            for ach_id in unlocked:
+                ach = ach_mod.ACHIEVEMENTS.get(ach_id, {})
+                name = ach.get("name", ach_id)
+                QTimer.singleShot(500, lambda n=name: QtToast(
+                    self, f"🏆 Достижение: {n}", duration=4000
+                ))
+        except Exception as e:
+            print(f"⚠️ Достижения: {e}")
             settings.save(self.settings)
             self._set_status(f"Папка: {chosen}")
             try:
@@ -1671,6 +1944,20 @@ class DownloaderApp(QMainWindow):
                 QtToast(self, f"✅ Файл сохранён:\n{output_dir}")
         except Exception as e:
             print(f"⚠️ Ошибка тоста: {e}")
+        # достижения: скачивание
+        try:
+            from modules import achievements as ach_mod
+            fmt = self.selected_format or {}
+            mode = "audio" if self.rb_mode_audio.isChecked() else "video"
+            unlocked = ach_mod.track_download(self.settings, fmt, mode)
+            for ach_id in unlocked:
+                ach = ach_mod.ACHIEVEMENTS.get(ach_id, {})
+                name = ach.get("name", ach_id)
+                QTimer.singleShot(500, lambda n=name: QtToast(
+                    self, f"🏆 Достижение: {n}", duration=4000
+                ))
+        except Exception as e:
+            print(f"⚠️ Достижения: {e}")
 
     def _download_error(self, msg):
         self.downloading = False
@@ -1755,7 +2042,30 @@ class DownloaderApp(QMainWindow):
         return "overwrite"
 
     def _set_status(self, text):
+        # если тема Frostmourne — переводим на язык Артаса
+        if self._holiday_theme == "frostmourne" or self._real_theme == "frostmourne":
+            text = self._translate_to_arthas(text)
         self.status_label.setText(text)
+
+    def _translate_to_arthas(self, text):
+        """Переводит статус на язык Артаса."""
+        replacements = {
+            "Готов к работе": "❄️ Клинок ждёт...",
+            "Получаю форматы...": "❄️ Читаю судьбу жертвы...",
+            "Найдено:": "❄️ Душ найдено:",
+            "Скачиваю...": "❄️ Фростморн пьёт душу...",
+            "✅ Готово!": "💀 Душа поглощена!",
+            "⏹ Отменено": "❄️ Жертва сбежала...",
+            "Ошибка": "💀 Тьма отвернулась...",
+            "Ошибка получения форматов": "💀 Не удалось прочесть судьбу",
+            "Ошибка скачивания": "💀 Душа сопротивляется",
+            "Папка:": "❄️ Логово:",
+            "⏭ Пропущено": "❄️ Душа уже наша",
+        }
+        for old, new in replacements.items():
+            if old in text:
+                text = text.replace(old, new)
+        return text
 
     def _set_progress(self, percent):
         self.progress.setValue(int(percent))
@@ -1908,6 +2218,69 @@ class DownloaderApp(QMainWindow):
     def _change_theme(self):
         ThemeDialog(self).exec()
         
+    def _play_frostmourne_greeting(self):
+        """Играет 'К чёрту людей!' при входе в тему Frostmourne."""
+        try:
+            from modules.sounds import play_admin_mp3
+            play_admin_mp3("KChortuLudei!.mp3")
+        except Exception as e:
+            print(f"⚠️ Голос Фростморна: {e}")
+            
+    def _play_voice(self, filename):
+        """Играет звук из admin_assets/sounds/."""
+        try:
+            from modules.sounds import play_admin_mp3
+            if play_admin_mp3(filename):
+                print(f"🔊 {filename}")
+            else:
+                QMessageBox.warning(
+                    self, "Нет файла",
+                    f"Файл не найден:\nadmin_assets/sounds/{filename}"
+                )
+        except Exception as e:
+            QMessageBox.warning(self, "Ошибка", str(e))
+
+    def _take_frostmourne(self):
+        """Пасхалка: Артас берёт Фростморн."""
+        # играем "Я с радостью приму проклятие"
+        try:
+            from modules.sounds import play_admin_mp3
+            play_admin_mp3("YaSRadost'uPrimu.mp3")
+        except Exception as e:
+            print(f"⚠️ Голос: {e}")
+
+        # диалог через 4 сек
+        QTimer.singleShot(4000, lambda: QMessageBox.information(
+            self, "❄️ Фростморн",
+            "«Я с радостью приму на себя проклятие»\n\n"
+            "Ты взял Фростморн. Ты — Король-лич.\n"
+            "Тема: Frostmourne. Черепа падают.\n\n"
+            "Перезапусти приложение."
+        ))
+
+        # ставим тему и праздник
+        self.parent_app.settings["theme"] = "frostmourne"
+        self.parent_app.settings["admin_forced_holiday"] = "frostmourne"
+
+        # достижения: тема Frostmourne
+        try:
+            from modules import achievements as ach_mod
+            unlocked = ach_mod.track_theme(self.parent_app.settings, "frostmourne")
+            for ach_id in unlocked:
+                ach = ach_mod.ACHIEVEMENTS.get(ach_id, {})
+                ach_name = ach.get("name", ach_id)
+                QTimer.singleShot(5000, lambda n=ach_name: QtToast(
+                    self.parent_app, f"🏆 Достижение: {n}", duration=4000
+                ))
+        except Exception as e:
+            print(f"⚠️ Достижения (Frostmourne): {e}")
+
+        settings.save(self.parent_app.settings)
+        self.accept()
+
+        # перезапуск через 4.5 сек
+        QTimer.singleShot(4500, self.parent_app._restart_with_animation)
+        
     def _apply_holiday_background(self):
         """Гирлянда поверх всего + падающие под scroll, но над фоном."""
         if not self._holiday_theme:
@@ -1950,6 +2323,7 @@ class DownloaderApp(QMainWindow):
             print(f"🎄 Падающие на viewport, БЕЗ stackUnder")
         except Exception as e:
             print(f"⚠️ Падающие: {e}")
+            
             
     def _restart_falling_fx(self):
         """Пересоздаёт падающие эмодзи."""
@@ -2049,6 +2423,11 @@ class DownloaderApp(QMainWindow):
         if getattr(self, "_holiday_lights", None):
             try:
                 self._holiday_lights.stop()
+            except Exception:
+                pass
+        if getattr(self, "_frost_fx", None):
+            try:
+                self._frost_fx.stop()
             except Exception:
                 pass
         if getattr(self, "_glow_timer", None):
@@ -2862,6 +3241,18 @@ class ThemeDialog(QDialog):
             from modules import settings as _settings_mod
             fresh = _settings_mod.load()
             self.parent_app.settings["custom_themes"] = fresh.get("custom_themes", {})
+        # достижения: тема
+        try:
+            from modules import achievements as ach_mod
+            unlocked = ach_mod.track_theme(self.parent_app.settings, name)
+            for ach_id in unlocked:
+                ach = ach_mod.ACHIEVEMENTS.get(ach_id, {})
+                ach_name = ach.get("name", ach_id)
+                QTimer.singleShot(1000, lambda n=ach_name: QtToast(
+                    self.parent_app, f"🏆 Достижение: {n}", duration=4000
+                ))
+        except Exception as e:
+            print(f"⚠️ Достижения (тема): {e}")
             self.accept()
             QTimer.singleShot(50, lambda: ThemeDialog(self.parent_app).exec())
 
@@ -2911,6 +3302,27 @@ class ThemeDialog(QDialog):
         self.parent_app.settings["theme"] = name
         self.parent_app.settings["custom_themes"] = fresh.get("custom_themes", {})
 
+        # достижения: тема
+        try:
+            from modules import achievements as ach_mod
+            unlocked = ach_mod.track_theme(self.parent_app.settings, name)
+            for ach_id in unlocked:
+                ach = ach_mod.ACHIEVEMENTS.get(ach_id, {})
+                ach_name = ach.get("name", ach_id)
+                QTimer.singleShot(1000, lambda n=ach_name: QtToast(
+                    self.parent_app, f"🏆 Достижение: {n}", duration=4000
+                ))
+            # сохраняем прогресс
+            _settings_mod.save(self.parent_app.settings)
+        except Exception as e:
+            print(f"⚠️ Достижения (тема): {e}")
+
+        if name == "frostmourne":
+            try:
+                from modules.sounds import ice_crack
+                ice_crack()
+            except Exception:
+                pass
         self.accept()
         QTimer.singleShot(50, self.parent_app._restart_with_animation)
 
@@ -3081,6 +3493,485 @@ class CookieSetupDialog(QDialog):
                 "Попробуй другой браузер или закрой браузер и повтори."
             )
             self.status_lbl.setText("")
+
+class AdminPanelDialog(QDialog):
+    """Админ-панель — всё для быстрого теста."""
+
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.setWindowTitle("🔧 Админ-панель")
+        self.setFixedSize(560, 720)
+        self.parent_app = parent
+
+        # скролл на всю панель
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        outer.addWidget(scroll)
+
+        inner = QWidget()
+        layout = QVBoxLayout(inner)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+        scroll.setWidget(inner)
+
+        title = QLabel("🔧 Админ-панель")
+        title.setStyleSheet(f"color: {FG}; font-size: 18px; font-weight: bold;")
+        layout.addWidget(title)
+
+        # ============================================
+        # 1. СТАТИСТИКА
+        # ============================================
+        stats_title = QLabel("📊 Статистика")
+        stats_title.setStyleSheet(f"color: {FG}; font-size: 14px; font-weight: bold;")
+        layout.addWidget(stats_title)
+
+        history = parent.settings.get("history", [])
+        total = len(history)
+        audio = sum(1 for h in history if h.get("file", "").lower().endswith(".mp3"))
+        video = total - audio
+
+        stats_box = QLabel(
+            f"📥 Всего: {total}   🎵 Аудио: {audio}   🎬 Видео: {video}\n"
+            f"🎨 Тема: {parent.settings.get('theme', 'dark')}\n"
+            f"🧊 Liquid Glass: {'вкл' if parent.settings.get('liquid_glass') else 'выкл'}\n"
+            f"🎄 Праздник: {parent.settings.get('admin_forced_holiday') or 'нет'}"
+        )
+        stats_box.setStyleSheet(
+            f"color: {FG}; font-size: 12px; "
+            f"background: {BG_CARD}; border: 1px solid {BORDER}; "
+            f"border-radius: 8px; padding: 12px;"
+        )
+        layout.addWidget(stats_box)
+
+        # ============================================
+        # 2. ПРАЗДНИКИ (тест)
+        # ============================================
+        hol_title = QLabel("🎄 Праздники (форсировать)")
+        hol_title.setStyleSheet(f"color: {FG}; font-size: 14px; font-weight: bold;")
+        layout.addWidget(hol_title)
+
+        hol_row = QHBoxLayout()
+
+        self.holiday_combo = QComboBox()
+        holidays = [
+            ("— нет —", None),
+            ("🎃 Хэллоуин", "halloween"),
+            ("💀 Doomsday", "doomsday"),
+            ("🎄 Новый год", "newyear"),
+            ("🌸 8 марта", "march8"),
+            ("🎒 1 сентября", "september1"),
+            ("❤️ 14 февраля", "feb14"),
+            ("🚀 12 апреля", "april12"),
+            ("🎉 1 мая", "may1"),
+            ("❄️ Frostmourne", "frostmourne"),
+        ]
+        for name, key in holidays:
+            self.holiday_combo.addItem(name, key)
+
+        current_holiday = parent.settings.get("admin_forced_holiday")
+        for i in range(self.holiday_combo.count()):
+            if self.holiday_combo.itemData(i) == current_holiday:
+                self.holiday_combo.setCurrentIndex(i)
+                break
+
+        hol_row.addWidget(self.holiday_combo, stretch=1)
+
+        b_apply_hol = QPushButton("Применить")
+        b_apply_hol.clicked.connect(self._apply_holiday)
+        hol_row.addWidget(b_apply_hol)
+
+        layout.addLayout(hol_row)
+
+        # ============================================
+        # 3. LIQUID GLASS
+        # ============================================
+        lg_title = QLabel("🧊 Liquid Glass")
+        lg_title.setStyleSheet(f"color: {FG}; font-size: 14px; font-weight: bold;")
+        layout.addWidget(lg_title)
+
+        self.lg_check = QCheckBox("Включить")
+        self.lg_check.setChecked(parent.settings.get("liquid_glass", False))
+        layout.addWidget(self.lg_check)
+
+        lg_row = QHBoxLayout()
+        lg_lbl = QLabel("Прозрачность:")
+        lg_lbl.setStyleSheet(f"color: {FG_DIM}; font-size: 11px;")
+        lg_lbl.setFixedWidth(100)
+        lg_row.addWidget(lg_lbl)
+
+        self.lg_slider = QSlider(Qt.Orientation.Horizontal)
+        self.lg_slider.setRange(30, 90)
+        self.lg_slider.setValue(parent.settings.get("liquid_opacity", 70))
+        lg_row.addWidget(self.lg_slider, stretch=1)
+
+        self.lg_val = QLabel(f"{self.lg_slider.value()}%")
+        self.lg_val.setStyleSheet(f"color: {FG}; font-size: 11px;")
+        self.lg_val.setFixedWidth(40)
+        self.lg_slider.valueChanged.connect(lambda v: self.lg_val.setText(f"{v}%"))
+        lg_row.addWidget(self.lg_val)
+
+        layout.addLayout(lg_row)
+
+        # ============================================
+        # 4. ТЕМА (быстро)
+        # ============================================
+        theme_title = QLabel("🎨 Тема (быстро)")
+        theme_title.setStyleSheet(f"color: {FG}; font-size: 14px; font-weight: bold;")
+        layout.addWidget(theme_title)
+
+        theme_row = QHBoxLayout()
+
+        self.theme_combo = QComboBox()
+        from modules.themes import THEMES
+        for key, t in THEMES.items():
+            if key.startswith("custom_"):
+                continue
+            self.theme_combo.addItem(t["name"], key)
+
+        current_theme = parent.settings.get("theme", "dark")
+        for i in range(self.theme_combo.count()):
+            if self.theme_combo.itemData(i) == current_theme:
+                self.theme_combo.setCurrentIndex(i)
+                break
+
+        theme_row.addWidget(self.theme_combo, stretch=1)
+
+        b_apply_theme = QPushButton("Применить")
+        b_apply_theme.clicked.connect(self._apply_theme)
+        theme_row.addWidget(b_apply_theme)
+
+        layout.addLayout(theme_row)
+
+        # ============================================
+        # 5. БЫСТРЫЕ ДЕЙСТВИЯ
+        # ============================================
+        quick_title = QLabel("⚡ Быстрые действия")
+        quick_title.setStyleSheet(f"color: {FG}; font-size: 14px; font-weight: bold;")
+        layout.addWidget(quick_title)
+
+        quick_row1 = QHBoxLayout()
+
+        b_random = QPushButton("🎲 Случайная тема")
+        b_random.clicked.connect(self._random_theme)
+        quick_row1.addWidget(b_random)
+
+        b_rainbow = QPushButton("🌈 Радуга")
+        b_rainbow.clicked.connect(self._rainbow_themes)
+        quick_row1.addWidget(b_rainbow)
+
+        layout.addLayout(quick_row1)
+
+        quick_row2 = QHBoxLayout()
+        
+        # ❄️ Фростморн
+        b_frost = QPushButton("❄️ Взять Фростморн")
+        b_frost.setStyleSheet(
+            "background: #1a3a5a; color: #88ccff; "
+            "font-weight: bold; padding: 10px;"
+        )
+        b_frost.clicked.connect(self._take_frostmourne)
+        layout.addWidget(b_frost)
+        # голосовые кнопки
+        voice_row = QHBoxLayout()
+
+        b_voice1 = QPushButton("🎤 «К чёрту людей!»")
+        b_voice1.clicked.connect(lambda: self._play_voice("KChortuLudei!.mp3"))
+        voice_row.addWidget(b_voice1)
+
+        b_voice2 = QPushButton("🎤 «Я с радостью приму»")
+        b_voice2.clicked.connect(lambda: self._play_voice("YaSRadost'uPrimu.mp3"))
+        voice_row.addWidget(b_voice2)
+
+        layout.addLayout(voice_row)
+
+        b_reload = QPushButton("🔄 Перезапуск")
+        b_reload.clicked.connect(self._reload)
+        quick_row2.addWidget(b_reload)
+
+        b_test_link = QPushButton("🎬 Тест-ссылка")
+        b_test_link.clicked.connect(self._test_link)
+        quick_row2.addWidget(b_test_link)
+
+        layout.addLayout(quick_row2)
+
+        # ============================================
+        # 6. DEBUG
+        # ============================================
+        debug_title = QLabel("🐛 Debug")
+        debug_title.setStyleSheet(f"color: {FG}; font-size: 14px; font-weight: bold;")
+        layout.addWidget(debug_title)
+
+        self.debug_logs = QCheckBox("Логи в консоль")
+        self.debug_logs.setChecked(parent.settings.get("debug_logs", False))
+        layout.addWidget(self.debug_logs)
+
+        self.debug_ids = QCheckBox("Показывать ID форматов")
+        self.debug_ids.setChecked(parent.settings.get("debug_ids", False))
+        layout.addWidget(self.debug_ids)
+
+        self.debug_paths = QCheckBox("Показывать пути файлов")
+        self.debug_paths.setChecked(parent.settings.get("debug_paths", False))
+        layout.addWidget(self.debug_paths)
+
+        # ============================================
+        # 7. СБРОС
+        # ============================================
+        reset_title = QLabel("🗑 Сброс")
+        reset_title.setStyleSheet(f"color: {FG}; font-size: 14px; font-weight: bold;")
+        layout.addWidget(reset_title)
+
+        reset_row = QHBoxLayout()
+
+        b_reset_hist = QPushButton("Историю")
+        b_reset_hist.clicked.connect(self._reset_history)
+        reset_row.addWidget(b_reset_hist)
+
+        b_reset_all = QPushButton("ВСЁ")
+        b_reset_all.setStyleSheet(f"background: {ACCENT}; color: white;")
+        b_reset_all.clicked.connect(self._reset_all)
+        reset_row.addWidget(b_reset_all)
+
+        layout.addLayout(reset_row)
+
+        layout.addStretch()
+
+        # ============================================
+        # 8. КНОПКИ ВНИЗУ
+        # ============================================
+        btn_row = QHBoxLayout()
+
+        b_disable_admin = QPushButton("🚪 Выйти из админа")
+        b_disable_admin.clicked.connect(self._disable_admin)
+        btn_row.addWidget(b_disable_admin)
+
+        btn_row.addStretch()
+
+        b_save = QPushButton("Сохранить")
+        b_save.setObjectName("primary")
+        b_save.clicked.connect(self._save)
+        btn_row.addWidget(b_save)
+
+        b_close = QPushButton("Закрыть")
+        b_close.clicked.connect(self.accept)
+        btn_row.addWidget(b_close)
+
+        layout.addLayout(btn_row)
+
+    # ============================================
+    # МЕТОДЫ
+    # ============================================
+
+    def _apply_holiday(self):
+        """Форсирует праздник."""
+        holiday_key = self.holiday_combo.currentData()
+        self.parent_app.settings["admin_forced_holiday"] = holiday_key
+        settings.save(self.parent_app.settings)
+        QMessageBox.information(
+            self, "Праздник",
+            f"Праздник: {self.holiday_combo.currentText()}\n"
+            f"Перезапусти приложение."
+        )
+
+    def _apply_theme(self):
+        """Применяет выбранную тему + сбрасывает форсированный праздник."""
+        theme_key = self.theme_combo.currentData()
+        self.parent_app.settings["theme"] = theme_key
+        # сбрасываем форсированный праздник, чтобы не оставался
+        self.parent_app.settings["admin_forced_holiday"] = None
+
+        # достижения: тема
+        try:
+            from modules import achievements as ach_mod
+            unlocked = ach_mod.track_theme(self.parent_app.settings, theme_key)
+            for ach_id in unlocked:
+                ach = ach_mod.ACHIEVEMENTS.get(ach_id, {})
+                ach_name = ach.get("name", ach_id)
+                QTimer.singleShot(1000, lambda n=ach_name: QtToast(
+                    self.parent_app, f"🏆 Достижение: {n}", duration=4000
+                ))
+        except Exception as e:
+            print(f"⚠️ Достижения (тема): {e}")
+
+        settings.save(self.parent_app.settings)
+
+        # хруст льда, если тема Frostmourne
+        if theme_key == "frostmourne":
+            try:
+                from modules.sounds import ice_crack
+                ice_crack()
+            except Exception:
+                pass
+
+        self.accept()
+        QTimer.singleShot(50, self.parent_app._restart_with_animation)
+     
+    def _play_voice(self, filename):
+        """Играет звук из admin_assets/sounds/."""
+        try:
+            from modules.sounds import play_admin_mp3
+            if play_admin_mp3(filename):
+                print(f"🔊 {filename}")
+            else:
+                QMessageBox.warning(
+                    self, "Нет файла",
+                    f"Файл не найден:\nadmin_assets/sounds/{filename}"
+                )
+        except Exception as e:
+            QMessageBox.warning(self, "Ошибка", str(e))
+
+    def _take_frostmourne(self):
+        """Пасхалка: Артас берёт Фростморн."""
+        # играем "Я с радостью приму проклятие"
+        try:
+            from modules.sounds import play_admin_mp3
+            play_admin_mp3("YaSRadost'uPrimu.mp3")
+        except Exception as e:
+            print(f"⚠️ Голос: {e}")
+
+        # диалог через 4 сек
+        QTimer.singleShot(4000, lambda: QMessageBox.information(
+            self, "❄️ Фростморн",
+            "«Я с радостью приму на себя проклятие»\n\n"
+            "Ты взял Фростморн. Ты — Король-лич.\n"
+            "Тема: Frostmourne. Черепа падают.\n\n"
+            "Перезапусти приложение."
+        ))
+
+        # ставим тему и праздник
+        self.parent_app.settings["theme"] = "frostmourne"
+        self.parent_app.settings["admin_forced_holiday"] = "frostmourne"
+        # достижения: Фростморн
+        try:
+            from modules import achievements as ach_mod
+            unlocked = ach_mod.track_frostmourne_taken(self.parent_app.settings)
+            for ach_id in unlocked:
+                ach = ach_mod.ACHIEVEMENTS.get(ach_id, {})
+                ach_name = ach.get("name", ach_id)
+                QTimer.singleShot(5000, lambda n=ach_name: QtToast(
+                    self.parent_app, f"🏆 Достижение: {n}", duration=4000
+                ))
+        except Exception as e:
+            print(f"⚠️ Достижения (Фростморн): {e}")
+            print(f"⚠️ Достижения (Фростморн): {e}")
+        settings.save(self.parent_app.settings)
+        self.accept()
+
+        # перезапуск через 4.5 сек
+        QTimer.singleShot(4500, self.parent_app._restart_with_animation)
+
+    def _random_theme(self):
+        """Случайная тема + сброс праздника."""
+        import random
+        from modules.themes import THEMES
+        keys = [k for k in THEMES.keys() if not k.startswith("custom_")]
+        theme_key = random.choice(keys)
+        self.parent_app.settings["theme"] = theme_key
+        self.parent_app.settings["admin_forced_holiday"] = None
+
+        # достижения: тема
+        try:
+            from modules import achievements as ach_mod
+            unlocked = ach_mod.track_theme(self.parent_app.settings, theme_key)
+            for ach_id in unlocked:
+                ach = ach_mod.ACHIEVEMENTS.get(ach_id, {})
+                ach_name = ach.get("name", ach_id)
+                QTimer.singleShot(1000, lambda n=ach_name: QtToast(
+                    self.parent_app, f"🏆 Достижение: {n}", duration=4000
+                ))
+        except Exception as e:
+            print(f"⚠️ Достижения (тема): {e}")
+
+        settings.save(self.parent_app.settings)
+        self.accept()
+        QTimer.singleShot(50, self.parent_app._restart_with_animation)
+
+    def _rainbow_themes(self):
+        """Радуга — быстрая смена тем."""
+        from modules.themes import THEMES
+        keys = [k for k in THEMES.keys() if not k.startswith("custom_")]
+
+        # проходим по 10 темам с задержкой 200мс
+        self.parent_app.settings["admin_forced_holiday"] = None
+
+        def _step(idx):
+            if idx >= 10:
+                return
+            theme_key = keys[idx % len(keys)]
+            self.parent_app.settings["theme"] = theme_key
+            settings.save(self.parent_app.settings)
+            QTimer.singleShot(200, lambda: _step(idx + 1))
+
+        _step(0)
+        QMessageBox.information(
+            self, "Радуга",
+            "Темы меняются. После — перезапусти приложение."
+        )
+
+    def _reload(self):
+        """Перезапускает приложение."""
+        self.accept()
+        QTimer.singleShot(50, self.parent_app._restart_with_animation)
+
+    def _test_link(self):
+        """Вставляет тестовую ссылку."""
+        test_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        self.parent_app.url_input.setText(test_url)
+        QMessageBox.information(
+            self, "Тест",
+            f"Ссылка вставлена:\n{test_url}"
+        )
+
+    def _reset_history(self):
+        reply = QMessageBox.question(
+            self, "Сброс",
+            "Очистить историю скачиваний?"
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.parent_app.settings["history"] = []
+            settings.save(self.parent_app.settings)
+            QMessageBox.information(self, "Готово", "История очищена.")
+
+    def _reset_all(self):
+        reply = QMessageBox.question(
+            self, "Сброс ВСЕГО",
+            "Сбросить ВСЕ настройки?\n"
+            "Это удалит историю, профили, темы."
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            from modules.settings import DEFAULTS
+            new_settings = dict(DEFAULTS)
+            new_settings["admin_mode"] = True  # оставляем админку
+            settings.save(new_settings)
+            QMessageBox.information(
+                self, "Готово",
+                "Все настройки сброшены.\nПерезапусти приложение."
+            )
+
+    def _disable_admin(self):
+        reply = QMessageBox.question(
+            self, "Выйти из админа",
+            "Выключить админ-режим?\n"
+            "Кнопка 🔧 исчезнет после перезапуска."
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.parent_app.settings["admin_mode"] = False
+            settings.save(self.parent_app.settings)
+            self.accept()
+            QTimer.singleShot(50, self.parent_app._restart_with_animation)
+
+    def _save(self):
+        """Сохраняет настройки."""
+        self.parent_app.settings["liquid_glass"] = self.lg_check.isChecked()
+        self.parent_app.settings["liquid_opacity"] = self.lg_slider.value()
+        self.parent_app.settings["debug_logs"] = self.debug_logs.isChecked()
+        self.parent_app.settings["debug_ids"] = self.debug_ids.isChecked()
+        self.parent_app.settings["debug_paths"] = self.debug_paths.isChecked()
+        settings.save(self.parent_app.settings)
+        QMessageBox.information(self, "Готово", "Настройки сохранены.")
 
 
 # ============================================================

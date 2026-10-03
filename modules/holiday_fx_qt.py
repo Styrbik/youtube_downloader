@@ -53,6 +53,12 @@ HOLIDAY_STYLES = {
         "corners": ["🎈", "🌷"],
         "glow": True,
     },
+    "frostmourne": {
+        "lights": ["#4dd9ff", "#88e8ff", "#2ab0d9"],
+        "corners": ["❄️", "💀"],
+        "glow": True,
+        "special": "ice",
+    },
 }
 
 
@@ -159,6 +165,29 @@ class HolidayLights(QWidget):
                 # ядро огня
                 painter.setBrush(QBrush(QColor(r, g, b)))
                 painter.drawEllipse(QPointF(x, h - 15), radius, radius)
+              
+        elif special == "ice":
+            # ледяные вспышки
+            for i in range(self.count):
+                x = (w / (self.count + 1)) * (i + 1)
+                brightness = self.brightness[i]
+
+                # ледяной голубой
+                r = int(100 * brightness)
+                g = int(200 * brightness)
+                b = int(255 * brightness)
+
+                radius = 4 + 3 * brightness
+
+                # свечение
+                glow = QColor(r, g, b, int(120 * brightness))
+                painter.setBrush(QBrush(glow))
+                painter.setPen(Qt.PenStyle.NoPen)
+                painter.drawEllipse(QPointF(x, h - 12), radius + 7, radius + 7)
+
+                # ядро
+                painter.setBrush(QBrush(QColor(r, g, b)))
+                painter.drawEllipse(QPointF(x, h - 12), radius, radius)
         else:
             # обычная гирлянда
             lights = self.style["lights"]

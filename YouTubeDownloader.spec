@@ -14,7 +14,7 @@ a = Analysis(
     ],
     hiddenimports=[
         'config',
-        'modules.settings',   # ← не 'settings'!
+        'modules.settings',
         'modules',
         'modules.bootstrap',
         'modules.core',
@@ -38,8 +38,10 @@ a = Analysis(
         'modules.updater',
         'modules.falling_fx',
         'modules.falling_fx_qt',
-        'modules.holiday_fx_qt',
-        'modules.background_widget',
+        'modules.holiday_fx_qt',      # ← добавил
+        'modules.background_widget',  # ← добавил
+        'modules.frost_fx_qt',        # ← добавил
+        'modules.achievements',       # ← добавил
         # Python встроенные
         '_overlapped',
         'asyncio',

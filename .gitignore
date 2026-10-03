@@ -49,3 +49,4 @@ config.json
 sounds_cache/
 downloads/
 *.log
+admin_assets/

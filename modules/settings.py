@@ -33,6 +33,13 @@ DEFAULTS = {
     "liquid_glass": False,        # ← добавить
     "liquid_opacity": 70,         # ← добавить (в процентах)
     "liquid_blur": 20,
+    "admin_mode": False,
+    "admin_forced_holiday": None,
+    "debug_logs": False,
+    "debug_ids": False,
+    "debug_paths": False,
+    "achievements": {},
+    "used_themes": [],
 }
 
 

@@ -1033,6 +1033,25 @@ THEMES = {
         "DISABLED": "#2a2a2a",
         "DISABLED_FG": "#555555",
     },
+    # ============================================================
+    #                    FROSTMOURNE
+    # ============================================================
+    "frostmourne": {
+        "name": "❄️ Frostmourne",
+        "category": "game",
+        "BG": "#0a1a2a",
+        "BG_CARD": "#102840",
+        "BG_INPUT": "#1a3a5a",
+        "FG": "#c8e8ff",
+        "FG_DIM": "#5a8ab0",
+        "ACCENT": "#4dd9ff",
+        "ACCENT_HOVER": "#88e8ff",
+        "ACCENT_PRESS": "#2ab0d9",
+        "BORDER": "#1a4a6a",
+        "BORDER_HOVER": "#4dd9ff",
+        "DISABLED": "#102840",
+        "DISABLED_FG": "#3a5a7a",
+    },
 }
 
 
