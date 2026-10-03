@@ -1905,7 +1905,7 @@ class DownloaderApp:
         win.resizable(False, False)
 
         self.root.update_idletasks()
-        w, h = 320, 280
+        w, h = 360, 520
         x = self.root.winfo_x() + (self.root.winfo_width() - w) // 2
         y = self.root.winfo_y() + (self.root.winfo_height() - h) // 2
         win.geometry(f"{w}x{h}+{x}+{y}")
@@ -1913,12 +1913,44 @@ class DownloaderApp:
         tk.Label(win, text="🎨 Выбери тему", bg=BG, fg=FG,
                  font=("Segoe UI", 14, "bold")).pack(pady=(20, 12))
 
+        # --- скролл-контейнер ---
+        container = tk.Frame(win, bg=BG)
+        container.pack(fill="both", expand=True, padx=0, pady=(0, 12))
+
+        canvas = tk.Canvas(container, bg=BG, highlightthickness=0, bd=0)
+        scrollbar = tk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        inner = tk.Frame(canvas, bg=BG)
+
+        inner.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        canvas.create_window((0, 0), window=inner, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # колесо мыши (только пока окно открыто)
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
+        def _bind_wheel(e=None):
+            canvas.bind_all("<MouseWheel>", _on_mousewheel)
+
+        def _unbind_wheel(e=None):
+            canvas.unbind_all("<MouseWheel>")
+
+        canvas.bind("<Enter>", _bind_wheel)
+        canvas.bind("<Leave>", _unbind_wheel)
+        win.bind("<Destroy>", _unbind_wheel)
+
         current = self.settings.get("theme", "dark")
         for key, theme in THEMES.items():
             is_current = (key == current)
             label = theme["name"] + ("  ✓" if is_current else "")
             HoverButton(
-                win, label,
+                inner, label,
                 command=lambda k=key, w_=win: self._set_theme(k, w_),
                 bg=theme["BG_CARD"], hover_bg=theme["BORDER_HOVER"],
                 fg=theme["FG"],

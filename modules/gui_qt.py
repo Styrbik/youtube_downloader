@@ -20,7 +20,8 @@ from PyQt6.QtWidgets import (
     QGraphicsDropShadowEffect, QGraphicsOpacityEffect, QDialog,
     QCheckBox, QRadioButton, QButtonGroup, QListWidget, QListWidgetItem,
     QProgressBar, QMessageBox, QFileDialog, QInputDialog, QMenu,
-    QSystemTrayIcon, QTextEdit, QGridLayout, QComboBox,
+    QSystemTrayIcon, QTextEdit, QGridLayout, QComboBox, QTabWidget,
+    QSlider,
 )
 from PyQt6.QtCore import (
     Qt, QTimer, QPropertyAnimation, QEasingCurve, QSize, QPoint,
@@ -33,11 +34,20 @@ from PyQt6.QtGui import (
 
 from modules import core, settings, visual, embed, icon_manager
 try:
+    from modules.holiday_fx_qt import HolidayLights, HOLIDAY_STYLES
+    HAS_HOLIDAY_FX = True
+except ImportError:
+    HAS_HOLIDAY_FX = False
     from modules import tray as tray_module
     HAS_TRAY = True
 except ImportError:
     HAS_TRAY = False
 from modules.icons import load_thumbnail, make_icon
+try:
+    from modules.background_widget import BackgroundWidget
+    HAS_BACKGROUND = True
+except ImportError:
+    HAS_BACKGROUND = False
 from modules.themes import THEMES, get_theme
 from config import (
     DOWNLOADS_DIR, ICON_PATH, CHANGELOG_PATH, COVER_PATH,
@@ -59,6 +69,118 @@ ACCENT_HOVER = "#ff3b30"
 ACCENT_PRESS = "#b71c1c"
 BORDER = "#3a3a3a"
 TITLEBAR_BG = "#151515"
+
+def enable_acrylic_win10(hwnd, tint_color=(20, 20, 30, 140)):
+    """Включает Acrylic (матовое стекло) на Windows 10."""
+    import ctypes
+
+    class ACCENT_POLICY(ctypes.Structure):
+        _fields_ = [
+            ("AccentState", ctypes.c_int),
+            ("AccentFlags", ctypes.c_int),
+            ("GradientColor", ctypes.c_uint),
+            ("AnimationId", ctypes.c_int),
+        ]
+
+    class WINDOWCOMPOSITIONATTRIBDATA(ctypes.Structure):
+        _fields_ = [
+            ("Attribute", ctypes.c_int),
+            ("Data", ctypes.POINTER(ACCENT_POLICY)),
+            ("SizeOfData", ctypes.c_size_t),
+        ]
+
+    ACCENT_ENABLE_ACRYLICBLURBEHIND = 4
+
+    r, g, b, a = tint_color
+    gradient = (a << 24) | (b << 16) | (g << 8) | r
+
+    accent = ACCENT_POLICY()
+    accent.AccentState = ACCENT_ENABLE_ACRYLICBLURBEHIND
+    accent.AccentFlags = 2
+    accent.GradientColor = gradient
+
+    data = WINDOWCOMPOSITIONATTRIBDATA()
+    data.Attribute = 19  # WCA_ACCENT_POLICY
+    data.Data = ctypes.pointer(accent)
+    data.SizeOfData = ctypes.sizeof(accent)
+
+    try:
+        ctypes.windll.user32.SetWindowCompositionAttribute(
+            hwnd, ctypes.byref(data)
+        )
+        return True
+    except Exception as e:
+        print(f"⚠️ Acrylic не удалось включить: {e}")
+        return False
+
+
+def disable_acrylic_win10(hwnd):
+    """Выключает Acrylic."""
+    import ctypes
+
+    class ACCENT_POLICY(ctypes.Structure):
+        _fields_ = [
+            ("AccentState", ctypes.c_int),
+            ("AccentFlags", ctypes.c_int),
+            ("GradientColor", ctypes.c_uint),
+            ("AnimationId", ctypes.c_int),
+        ]
+
+    class WINDOWCOMPOSITIONATTRIBDATA(ctypes.Structure):
+        _fields_ = [
+            ("Attribute", ctypes.c_int),
+            ("Data", ctypes.POINTER(ACCENT_POLICY)),
+            ("SizeOfData", ctypes.c_size_t),
+        ]
+
+    ACCENT_DISABLED = 0
+
+    accent = ACCENT_POLICY()
+    accent.AccentState = ACCENT_DISABLED
+    accent.AccentFlags = 0
+    accent.GradientColor = 0
+
+    data = WINDOWCOMPOSITIONATTRIBDATA()
+    data.Attribute = 19
+    data.Data = ctypes.pointer(accent)
+    data.SizeOfData = ctypes.sizeof(accent)
+
+    try:
+        ctypes.windll.user32.SetWindowCompositionAttribute(
+            hwnd, ctypes.byref(data)
+        )
+    except Exception:
+        pass
+
+def _hex_to_rgba(hex_color, alpha=1.0):
+    """Превращает #RRGGBB в rgba(R, G, B, A)."""
+    h = hex_color.lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    r = int(h[0:2], 16)
+    g = int(h[2:4], 16)
+    b = int(h[4:6], 16)
+    return f"rgba({r}, {g}, {b}, {alpha})"
+
+
+def _apply_liquid_glass(enabled, opacity_pct=70, blur_px=20):
+    """
+    Liquid Glass — прозрачность только для карточек и кнопок.
+    Главный BG НЕ трогаем — он сплошной.
+    """
+    global BG_CARD, BG_INPUT, BORDER, TITLEBAR_BG
+
+    if not enabled:
+        return
+
+    alpha = max(0.1, min(1.0, opacity_pct / 100.0))
+    soft_alpha = alpha * 0.7
+    border_alpha = alpha * 0.35
+
+    BG_CARD = _hex_to_rgba(BG_CARD, alpha)
+    BG_INPUT = _hex_to_rgba(BG_INPUT, soft_alpha)
+    BORDER = _hex_to_rgba(BORDER, border_alpha)
+    TITLEBAR_BG = _hex_to_rgba(TITLEBAR_BG, alpha * 0.9)
 
 
 def _detect_platform(url):
@@ -104,7 +226,13 @@ def _apply_theme(theme_name):
 
 
 def build_qss():
+    print(f"DEBUG BG={BG}, BG_CARD={BG_CARD}, BORDER={BORDER}")
     return f"""
+        QMainWindow {{
+            background-color: {BG};
+            color: {FG};
+            font-family: "Segoe UI", "Segoe UI Emoji";
+        }}
         QWidget {{
             background-color: {BG};
             color: {FG};
@@ -114,7 +242,7 @@ def build_qss():
         QFrame#card {{
             background-color: {BG_CARD};
             border: 1px solid {BORDER};
-            border-radius: 12px;
+             border-radius: 12px;
         }}
         QFrame#card:hover {{ border: 1px solid {ACCENT}; }}
         QLineEdit {{
@@ -322,6 +450,25 @@ class Card(QFrame):
         # тень на карточке
         self._shadow = add_shadow(self, color="#000000", blur=20, offset=(0, 4), opacity=100)
 
+        # Liquid Glass — дополнительная тень, если включён
+        self._apply_liquid_shadow()
+
+    def _apply_liquid_shadow(self):
+        """Если Liquid Glass — добавить мягкое свечение."""
+        try:
+            from modules import settings as _s
+            s = _s.load()
+            if s.get("liquid_glass", False):
+                blur_px = s.get("liquid_blur", 20)
+                # тень от стекла
+                shadow = QGraphicsDropShadowEffect(self)
+                shadow.setBlurRadius(blur_px + 10)
+                shadow.setColor(QColor(255, 255, 255, 30))
+                shadow.setOffset(0, 0)
+                self.setGraphicsEffect(shadow)
+        except Exception:
+            pass
+
     def add(self, w):
         self._layout.addWidget(w)
         return w
@@ -329,6 +476,10 @@ class Card(QFrame):
     def add_layout(self, l):
         self._layout.addLayout(l)
         return l
+        self._layout.setContentsMargins(14, 12, 14, 12)
+        self._layout.setSpacing(8)
+        # тень на карточке
+        self._shadow = add_shadow(self, color="#000000", blur=20, offset=(0, 4), opacity=100)
 
 
 # ============================================================
@@ -442,6 +593,13 @@ class DownloaderApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.settings = settings.load()
+        # в начале __init__ после settings.load()
+        liquid = self.settings.get("liquid_glass", False)
+
+        # WA_TranslucentBackground не нужен — Acrylic работает без него
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
         self.sig_populate.connect(self._populate_formats)
         self.sig_error.connect(self._fetch_error)
         self.sig_progress.connect(self._set_progress)
@@ -456,6 +614,7 @@ class DownloaderApp(QMainWindow):
         self._holiday_greeting = None
         self._real_theme = self.settings.get("theme", "dark")
         self._falling_fx = None
+        self._holiday_lights = None
 
         if today.month == 10 and today.day == 31:
             self._holiday_mode = True
@@ -493,9 +652,22 @@ class DownloaderApp(QMainWindow):
         theme_to_apply = self._holiday_theme if self._holiday_mode else self._real_theme
         _apply_theme(theme_to_apply)
 
+        # Liquid Glass — прозрачность только для карточек и кнопок
+        if self.settings.get("liquid_glass", False):
+            _apply_liquid_glass(
+                True,
+                self.settings.get("liquid_opacity", 70),
+                self.settings.get("liquid_blur", 20),
+            )
+
         self.setWindowTitle(APP_TITLE)
-        self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
+        if self.settings.get("liquid_glass", False):
+            # для Acrylic нужен обычный frameless, но с прозрачным фоном
+            self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        else:
+            self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, False)
 
         saved_geom = self.settings.get("window_geometry", "")
         w, h = self._pick_size(saved_geom)
@@ -532,8 +704,9 @@ class DownloaderApp(QMainWindow):
         if self._holiday_mode and self._holiday_greeting:
             QTimer.singleShot(1500, self._show_holiday_toast)
 
-        if self._holiday_mode:
-            QTimer.singleShot(300, self._start_falling_fx_qt)
+        if self._holiday_mode and HAS_BACKGROUND:
+            # праздник — запускаем фон с гирляндой и эмодзи
+            QTimer.singleShot(300, self._apply_holiday_background)
 
         if self.settings.get("auto_update_ytdlp", True):
             threading.Thread(target=self._check_ytdlp_update, daemon=True).start()
@@ -563,7 +736,18 @@ class DownloaderApp(QMainWindow):
                 # окно разворачивается — анимируем
                 if not getattr(self, "_restore_anim_running", False):
                     self._animate_restore()
-
+        # при восстановлении — перезапускаем падающие
+        if getattr(self, "_holiday_mode", False) and getattr(self, "_falling_fx", None):
+            if not self._falling_fx.isVisible():
+                QTimer.singleShot(100, self._restart_falling_fx)
+            else:
+                try:
+                    parent = self.centralWidget()
+                    self._falling_fx.setGeometry(parent.rect())
+                    self._falling_fx.raise_()
+                except Exception:
+                    pass
+                    
         super().changeEvent(event)
 
     def _animate_restore(self):
@@ -650,6 +834,12 @@ class DownloaderApp(QMainWindow):
 
     def _apply_qss(self):
         self.setStyleSheet(build_qss())
+        # сообщаем BackgroundWidget текущий цвет фона
+        if HAS_BACKGROUND and hasattr(self, "_central_bg"):
+            try:
+                self._central_bg.set_bg_color(BG)
+            except Exception:
+                pass
 
     def _cascade_animate(self):
         for i, card in enumerate((
@@ -667,8 +857,12 @@ class DownloaderApp(QMainWindow):
     #                    UI
     # --------------------------------------------------------
     def _build_ui(self):
-        central = QWidget()
+        if HAS_BACKGROUND:
+            central = BackgroundWidget(bg_color=BG)
+        else:
+            central = QWidget()
         self.setCentralWidget(central)
+        self._central_bg = central
         root_layout = QVBoxLayout(central)
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
@@ -757,10 +951,11 @@ class DownloaderApp(QMainWindow):
         root_layout.addWidget(self.cheek)
 
         # ----- Скролл -----
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        root_layout.addWidget(scroll, stretch=1)
+        self._scroll = QScrollArea()
+        self._scroll.setWidgetResizable(True)
+        self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        root_layout.addWidget(self._scroll, stretch=1)
+        scroll = self._scroll
 
         self.content = QWidget()
         scroll.setWidget(self.content)
@@ -1713,6 +1908,83 @@ class DownloaderApp(QMainWindow):
     def _change_theme(self):
         ThemeDialog(self).exec()
         
+    def _apply_holiday_background(self):
+        """Гирлянда поверх всего + падающие под scroll, но над фоном."""
+        if not self._holiday_theme:
+            return
+
+        # 1. гирлянда — поверх всего
+        if HAS_HOLIDAY_FX:
+            try:
+                self._holiday_lights = HolidayLights(
+                    self.centralWidget(),
+                    self._holiday_theme,
+                    count=25,
+                )
+                # под шапкой
+                self._holiday_lights.setGeometry(
+                    0, 39,
+                    self.centralWidget().width(), 30
+                )
+                self._holiday_lights.show()
+                self._holiday_lights.raise_()
+                print(f"🎄 Гирлянда поверх всего")
+            except Exception as e:
+                print(f"⚠️ Гирлянда: {e}")
+
+        # 2. падающие — на viewport scroll, под content
+        try:
+            from modules.falling_fx_qt import FallingFXQt
+            viewport = self._scroll.viewport()
+            self._falling_fx = FallingFXQt(
+                viewport,
+                self._holiday_theme,
+                count=12,
+                speed=1.5,
+            )
+            self._falling_fx.setGeometry(viewport.rect())
+            self._falling_fx.show()
+
+            # ВРЕМЕННО без stackUnder — проверим, видны ли
+            # self._falling_fx.stackUnder(self.content)
+            print(f"🎄 Падающие на viewport, БЕЗ stackUnder")
+        except Exception as e:
+            print(f"⚠️ Падающие: {e}")
+            
+    def _restart_falling_fx(self):
+        """Пересоздаёт падающие эмодзи."""
+        try:
+            if getattr(self, "_falling_fx", None):
+                self._falling_fx.stop()
+                self._falling_fx.deleteLater()
+                self._falling_fx = None
+
+            from modules.falling_fx_qt import FallingFXQt
+            parent = self.centralWidget()
+            self._falling_fx = FallingFXQt(
+                parent,
+                self._holiday_theme,
+                count=12,
+                speed=1.5,
+            )
+            self._falling_fx.setGeometry(parent.rect())
+            self._falling_fx.show()
+            self._falling_fx.raise_()
+            print(f"🎄 Падающие пересозданы")
+        except Exception as e:
+            print(f"⚠️ Ошибка пересоздания: {e}")
+
+    def _disable_native_acrylic(self):
+        """Выключает Acrylic."""
+        import sys
+        if sys.platform != "win32":
+            return
+        try:
+            hwnd = int(self.winId())
+            disable_acrylic_win10(hwnd)
+        except Exception:
+            pass
+        
     def _restart_with_animation(self):
         """Плавно перезапускает приложение с новой темой."""
         # --- оверлей ---
@@ -1774,6 +2046,11 @@ class DownloaderApp(QMainWindow):
                 self._falling_fx.stop()
             except Exception:
                 pass
+        if getattr(self, "_holiday_lights", None):
+            try:
+                self._holiday_lights.stop()
+            except Exception:
+                pass
         if getattr(self, "_glow_timer", None):
             self._glow_timer.stop()
         if self._tray_icon:
@@ -1782,46 +2059,27 @@ class DownloaderApp(QMainWindow):
             except Exception:
                 pass
 
-        # --- перезапуск ---
-        import subprocess
+        # --- перезапуск через QProcess ---
+        from PyQt6.QtCore import QProcess
 
         if getattr(sys, "frozen", False):
             # запущено из exe
-            QApplication.quit()
-            subprocess.Popen([sys.executable])
+            QProcess.startDetached(sys.executable, [])
         else:
             # запущено из скрипта
             script = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 "downloader_qt.py"
             )
-            QApplication.quit()
-            subprocess.Popen([sys.executable, script])
+            QProcess.startDetached(sys.executable, [script])
 
-
+        QApplication.quit()
+            
     def _show_holiday_toast(self):
         try:
             QtToast(self, self._holiday_greeting, duration=7000)
         except Exception as e:
             print(f"⚠️ Ошибка праздничного тоста: {e}")
-
-    def _start_falling_fx_qt(self):
-        """Запускает падающие праздничные объекты (PyQt6-версия)."""
-        try:
-            from modules.falling_fx_qt import FallingFXQt
-
-            parent = self.centralWidget()
-            self._falling_fx = FallingFXQt(
-                parent,
-                self._holiday_theme,
-                count=12,
-                speed=1.5,
-            )
-            self._falling_fx.setGeometry(parent.rect())
-            self._falling_fx.raise_()
-            self._falling_fx.show()
-        except Exception as e:
-            print(f"⚠️ Не удалось запустить падающие объекты: {e}")
 
     def _check_ytdlp_update(self):
         try:
@@ -1850,11 +2108,6 @@ class DownloaderApp(QMainWindow):
             self.settings["window_geometry"] = geom
         except Exception:
             pass
-        if getattr(self, "_falling_fx", None):
-            try:
-                self._falling_fx.stop()
-            except Exception:
-                pass
 
         self.settings["mode"] = "audio" if self.rb_mode_audio.isChecked() else "video"
         self.settings["container"] = self._get_checked("_rb_container", "mp4")
@@ -1926,6 +2179,61 @@ class SettingsDialog(QDialog):
         add_check("check_updates", "🔄 Проверять обновления")
 
         inner_layout.addStretch()
+        
+        # --- Liquid Glass ---
+        separator = QLabel("")
+        separator.setFixedHeight(10)
+        inner_layout.addWidget(separator)
+
+        liquid_title = QLabel("🧊 Liquid Glass")
+        liquid_title.setStyleSheet(f"color: {FG}; font-size: 13px; font-weight: bold;")
+        inner_layout.addWidget(liquid_title)
+
+        liquid_cb = QCheckBox("Включить эффект стекла")
+        liquid_cb.setChecked(parent.settings.get("liquid_glass", False))
+        self.vars["liquid_glass"] = liquid_cb
+        inner_layout.addWidget(liquid_cb)
+
+        hint = QLabel("Делает любую тему полупрозрачной, как в iOS 26")
+        hint.setStyleSheet(f"color: {FG_DIM}; font-size: 10px; font-style: italic;")
+        hint.setContentsMargins(22, 0, 0, 0)
+        inner_layout.addWidget(hint)
+
+        # слайдер прозрачности
+        op_row = QHBoxLayout()
+        op_lbl = QLabel("Прозрачность:")
+        op_lbl.setStyleSheet(f"color: {FG_DIM}; font-size: 11px;")
+        op_lbl.setFixedWidth(100)
+        op_row.addWidget(op_lbl)
+        op_slider = QSlider(Qt.Orientation.Horizontal)
+        op_slider.setRange(30, 90)
+        op_slider.setValue(parent.settings.get("liquid_opacity", 70))
+        self.vars["liquid_opacity"] = op_slider
+        op_row.addWidget(op_slider, stretch=1)
+        op_val = QLabel(f"{op_slider.value()}%")
+        op_val.setStyleSheet(f"color: {FG}; font-size: 11px;")
+        op_val.setFixedWidth(40)
+        op_slider.valueChanged.connect(lambda v: op_val.setText(f"{v}%"))
+        op_row.addWidget(op_val)
+        inner_layout.addLayout(op_row)
+
+        # слайдер размытия
+        bl_row = QHBoxLayout()
+        bl_lbl = QLabel("Размытие:")
+        bl_lbl.setStyleSheet(f"color: {FG_DIM}; font-size: 11px;")
+        bl_lbl.setFixedWidth(100)
+        bl_row.addWidget(bl_lbl)
+        bl_slider = QSlider(Qt.Orientation.Horizontal)
+        bl_slider.setRange(5, 40)
+        bl_slider.setValue(parent.settings.get("liquid_blur", 20))
+        self.vars["liquid_blur"] = bl_slider
+        bl_row.addWidget(bl_slider, stretch=1)
+        bl_val = QLabel(f"{bl_slider.value()}px")
+        bl_val.setStyleSheet(f"color: {FG}; font-size: 11px;")
+        bl_val.setFixedWidth(40)
+        bl_slider.valueChanged.connect(lambda v: bl_val.setText(f"{v}px"))
+        bl_row.addWidget(bl_val)
+        inner_layout.addLayout(bl_row)
 
         # Кнопки
         btn_row = QHBoxLayout()
@@ -1957,10 +2265,20 @@ class SettingsDialog(QDialog):
             cb.setChecked(DEFAULTS.get(key, True))
 
     def _save(self):
-        for key, cb in self.vars.items():
-            self.parent_app.settings[key] = cb.isChecked()
+        for key, widget in self.vars.items():
+            if isinstance(widget, QCheckBox):
+                self.parent_app.settings[key] = widget.isChecked()
+            elif isinstance(widget, QSlider):
+                self.parent_app.settings[key] = widget.value()
+
         settings.save(self.parent_app.settings)
+
+        # если Liquid Glass поменялся — предложить перезапуск
+        old = self.parent_app.settings.get("liquid_glass", False)
         self.accept()
+
+        # перезапуск с анимацией — чтобы стекло применилось
+        QTimer.singleShot(50, self.parent_app._restart_with_animation)
         
     def _switch_version(self):
         """Спрашивает подтверждение и перезапускает лаунчер."""
@@ -2306,12 +2624,11 @@ class IconManagerDialog(QDialog):
         if icon_manager.delete_icon(name):
             self._refresh()
 
-
 class ThemeDialog(QDialog):
     def __init__(self, parent):
         super().__init__(parent)
         self.setWindowTitle("Выбор темы")
-        self.setFixedSize(400, 780)
+        self.setFixedSize(500, 700)
         self.parent_app = parent
         self.selected_theme_id = self.parent_app.settings.get("theme", "dark")
 
@@ -2328,175 +2645,73 @@ class ThemeDialog(QDialog):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 16, 20, 16)
-        layout.setSpacing(8)
+        layout.setSpacing(10)
 
         title = QLabel("🎨 Выбери тему")
-        title.setStyleSheet(f"color: {FG}; font-size: 15px; font-weight: bold;")
+        title.setStyleSheet(f"color: {FG}; font-size: 16px; font-weight: bold;")
         layout.addWidget(title)
 
-        # ==== Контейнер с абсолютным позиционированием ====
-        themes_container = QWidget()
-        themes_container.setStyleSheet("background: transparent;")
-
-        from modules.themes import THEMES
+        # ==== Вкладки ====
+        from modules.themes import THEMES, CATEGORIES, themes_by_category
         from modules import theme_manager
 
-        all_themes = []
-        for k, t in THEMES.items():
-            if k.startswith("custom_"):
-                continue  # кастомные добавим отдельно
-            all_themes.append((k, t["name"], False))
-        for t in theme_manager.list_custom_themes():
-            all_themes.append((t["id"], t["name"], True))
+        self.tabs = QTabWidget()
+        self.tabs.setStyleSheet(f"""
+            QTabWidget::pane {{
+                border: 1px solid {BORDER};
+                border-radius: 8px;
+                background: {BG_CARD};
+            }}
+            QTabBar::tab {{
+                background: {BG_INPUT};
+                color: {FG_DIM};
+                padding: 8px 14px;
+                margin-right: 2px;
+                border-top-left-radius: 6px;
+                border-top-right-radius: 6px;
+                font-size: 12px;
+                font-weight: bold;
+            }}
+            QTabBar::tab:selected {{
+                background: {ACCENT};
+                color: white;
+            }}
+            QTabBar::tab:hover {{
+                background: {BORDER};
+                color: {FG};
+            }}
+        """)
+        layout.addWidget(self.tabs, stretch=1)
 
-        # высота обёртки под каждую тему
-        btn_h = 34
-        gap = 8
-        step = btn_h + gap
-        # с запасом на выезд (по 6px сверху/снизу)
-        container_h = step * len(all_themes) + 20
-        themes_container.setFixedHeight(container_h)
-
-        # скролл — если всё равно не влезет
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-
-        scroll_inner = QWidget()
-        scroll_inner.setStyleSheet("background: transparent;")
-        scroll_layout = QVBoxLayout(scroll_inner)
-        scroll_layout.setContentsMargins(0, 0, 0, 0)
-        scroll_layout.addWidget(themes_container)
-        scroll_layout.addStretch()
-        scroll.setWidget(scroll_inner)
-
-        current = self.parent_app.settings.get("theme", "dark")
         self._theme_buttons = []
+        current = self.parent_app.settings.get("theme", "dark")
 
-        y = 10  # начальный отступ сверху
-        for key, name, is_custom in all_themes:
-            display = name + ("  ✓" if key == current else "")
-
-            b = QPushButton(display, themes_container)
-            b.setCursor(Qt.CursorShape.PointingHandCursor)
-            b.setGeometry(0, y, 360, btn_h)
-            b.setMouseTracking(True)
-
-            # цвета
-            if is_custom:
-                t_data = theme_manager.get_custom_theme(key)
-                colors = theme_manager.build_full_theme(t_data["colors"]) if t_data else {}
-                card = colors.get("BG_CARD", BG_CARD)
-                accent = colors.get("ACCENT", ACCENT)
-                fg = colors.get("FG", FG)
-                border = colors.get("BORDER", BORDER)
-                bg_in = colors.get("BG_INPUT", BG_INPUT)
+        # для каждой категории — своя вкладка
+        for cat_key, cat_name in CATEGORIES.items():
+            if cat_key == "custom":
+                # свои темы — отдельно
+                custom_list = theme_manager.list_custom_themes()
+                if not custom_list:
+                    continue
+                themes_in_cat = [(t["id"], {"name": t["name"], "category": "custom"})
+                                 for t in custom_list]
+            elif cat_key == "all":
+                # "Все" — объединяем всё
+                themes_in_cat = []
+                for k, t in THEMES.items():
+                    if k.startswith("custom_"):
+                        continue
+                    themes_in_cat.append((k, t))
+                for t in theme_manager.list_custom_themes():
+                    themes_in_cat.append((t["id"], {"name": t["name"], "category": "custom"}))
             else:
-                t = THEMES[key]
-                card = t["BG_CARD"]
-                accent = t["ACCENT"]
-                fg = t["FG"]
-                border = t["BORDER"]
-                bg_in = t["BG_INPUT"]
+                themes_in_cat = themes_by_category(cat_key)
 
-            normal_style = f"""
-                QPushButton {{
-                    background-color: {card};
-                    color: {fg};
-                    border: 1px solid {border};
-                    border-radius: 9px;
-                    text-align: left;
-                    padding-left: 14px;
-                    padding-right: 14px;
-                    font-size: 12px;
-                    font-weight: bold;
-                }}
-            """
+            if not themes_in_cat:
+                continue
 
-            hover_style = f"""
-                QPushButton {{
-                    background-color: {bg_in};
-                    color: {fg};
-                    border: 2px solid {accent};
-                    border-radius: 9px;
-                    text-align: left;
-                    padding-left: 13px;
-                    padding-right: 13px;
-                    font-size: 12px;
-                    font-weight: bold;
-                }}
-            """
-
-            b.setStyleSheet(normal_style)
-            b._normal_style = normal_style
-            b._hover_style = hover_style
-            b._base_y = y
-            b._accent = accent
-            b._is_hovered = False
-
-            # hover-анимация
-            def _make_handlers(btn):
-                def on_enter(e):
-                    if btn._is_hovered:
-                        return
-                    btn._is_hovered = True
-                    btn.raise_()
-
-                    shadow = QGraphicsDropShadowEffect(btn)
-                    shadow.setBlurRadius(24)
-                    shadow.setColor(QColor(btn._accent))
-                    shadow.setOffset(0, 6)
-                    try:
-                        shadow.setOpacity(0.6)
-                    except Exception:
-                        pass
-                    btn.setGraphicsEffect(shadow)
-
-                    btn.setStyleSheet(btn._hover_style)
-
-                    anim = QPropertyAnimation(btn, b"pos")
-                    anim.setDuration(150)
-                    anim.setStartValue(btn.pos())
-                    anim.setEndValue(QPoint(0, btn._base_y - 6))
-                    anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-                    anim.start()
-                    btn._anim = anim
-
-                def on_leave(e):
-                    if not btn._is_hovered:
-                        return
-                    btn._is_hovered = False
-                    btn.setGraphicsEffect(None)
-                    btn.setStyleSheet(btn._normal_style)
-
-                    anim = QPropertyAnimation(btn, b"pos")
-                    anim.setDuration(150)
-                    anim.setStartValue(btn.pos())
-                    anim.setEndValue(QPoint(0, btn._base_y))
-                    anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-                    anim.start()
-                    btn._anim = anim
-
-                btn.enterEvent = on_enter
-                btn.leaveEvent = on_leave
-
-            _make_handlers(b)
-
-            b.clicked.connect(lambda _, k=key: self._set_theme(k))
-            self._theme_buttons.append((b, key, is_custom))
-
-            y += step
-
-        # растягиваем по ширине
-        def _resize(event, container=themes_container, btns=self._theme_buttons):
-            w = container.width()
-            for b, _, _ in btns:
-                b.setFixedWidth(w)
-
-        themes_container.resizeEvent = _resize
-
-        layout.addWidget(scroll, stretch=1)
+            tab = self._make_tab(themes_in_cat, current, is_custom=(cat_key == "custom"))
+            self.tabs.addTab(tab, cat_name)
 
         # ---- Кнопки внизу ----
         btn_row = QHBoxLayout()
@@ -2519,6 +2734,112 @@ class ThemeDialog(QDialog):
 
         layout.addLayout(btn_row)
 
+    def _make_tab(self, themes_list, current, is_custom=False):
+        """Создаёт содержимое вкладки со списком тем."""
+        from modules.themes import THEMES
+        from modules import theme_manager
+
+        # скролл
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setStyleSheet("QScrollArea { border: none; background: transparent; }")
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        inner = QWidget()
+        inner.setStyleSheet("background: transparent;")
+        vbox = QVBoxLayout(inner)
+        vbox.setContentsMargins(10, 10, 10, 10)
+        vbox.setSpacing(6)
+
+        for key, t in themes_list:
+            display = t["name"] + ("  ✓" if key == current else "")
+
+            b = QPushButton(display)
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            b.setFixedHeight(38)
+            b.setMouseTracking(True)
+
+            # цвета темы
+            try:
+                card = t["BG_CARD"]
+                accent = t["ACCENT"]
+                fg = t["FG"]
+                border = t["BORDER"]
+                bg_in = t["BG_INPUT"]
+            except KeyError:
+                t_data = theme_manager.get_custom_theme(key)
+                colors = theme_manager.build_full_theme(t_data["colors"]) if t_data else {}
+                card = colors.get("BG_CARD", BG_CARD)
+                accent = colors.get("ACCENT", ACCENT)
+                fg = colors.get("FG", FG)
+                border = colors.get("BORDER", BORDER)
+                bg_in = colors.get("BG_INPUT", BG_INPUT)
+
+            normal_style = f"""
+                QPushButton {{
+                    background-color: {card};
+                    color: {fg};
+                    border: 1px solid {border};
+                    border-radius: 8px;
+                    text-align: left;
+                    padding-left: 14px;
+                    font-size: 12px;
+                    font-weight: bold;
+                }}
+            """
+            hover_style = f"""
+                QPushButton {{
+                    background-color: {bg_in};
+                    color: {fg};
+                    border: 2px solid {accent};
+                    border-radius: 8px;
+                    text-align: left;
+                    padding-left: 13px;
+                    font-size: 12px;
+                    font-weight: bold;
+                }}
+            """
+
+            b.setStyleSheet(normal_style)
+            b._normal_style = normal_style
+            b._hover_style = hover_style
+            b._is_hovered = False
+
+            def _make_handlers(btn, accent_color):
+                def on_enter(e):
+                    if btn._is_hovered:
+                        return
+                    btn._is_hovered = True
+                    shadow = QGraphicsDropShadowEffect(btn)
+                    shadow.setBlurRadius(16)
+                    shadow.setColor(QColor(accent_color))
+                    shadow.setOffset(0, 4)
+                    try:
+                        shadow.setOpacity(0.5)
+                    except Exception:
+                        pass
+                    btn.setGraphicsEffect(shadow)
+                    btn.setStyleSheet(btn._hover_style)
+
+                def on_leave(e):
+                    if not btn._is_hovered:
+                        return
+                    btn._is_hovered = False
+                    btn.setGraphicsEffect(None)
+                    btn.setStyleSheet(btn._normal_style)
+
+                btn.enterEvent = on_enter
+                btn.leaveEvent = on_leave
+
+            _make_handlers(b, accent)
+
+            b.clicked.connect(lambda _, k=key: self._set_theme(k))
+            vbox.addWidget(b)
+
+        vbox.addStretch()
+        scroll.setWidget(inner)
+        return scroll
+
     def _create_theme(self):
         try:
             from modules.theme_configurator import ThemeConfiguratorDialog
@@ -2528,7 +2849,6 @@ class ThemeDialog(QDialog):
 
         dlg = ThemeConfiguratorDialog(self.parent_app)
         if dlg.exec() == QDialog.DialogCode.Accepted and dlg.saved_id:
-            # обновляем settings в памяти
             from modules import settings as _settings_mod
             fresh = _settings_mod.load()
             self.parent_app.settings["custom_themes"] = fresh.get("custom_themes", {})
@@ -2536,7 +2856,6 @@ class ThemeDialog(QDialog):
             QTimer.singleShot(50, lambda: ThemeDialog(self.parent_app).exec())
 
     def _delete_theme(self):
-        """Удаляет ТЕКУЩУЮ кастомную тему."""
         from modules import theme_manager
 
         current = self.parent_app.settings.get("theme", "dark")
@@ -2559,8 +2878,6 @@ class ThemeDialog(QDialog):
             return
 
         if theme_manager.delete_custom_theme(current):
-            # перечитываем конфиг (в файле уже удалено)
-            import importlib
             from modules import settings as settings_module
             fresh = settings_module.load()
             self.parent_app.settings["custom_themes"] = fresh.get("custom_themes", {})
@@ -2578,19 +2895,14 @@ class ThemeDialog(QDialog):
         """Применяет тему с анимацией и перезапуском."""
         from modules import settings as _settings_mod
 
-        # сохраняем
         fresh = _settings_mod.load()
         fresh["theme"] = name
         _settings_mod.save(fresh)
         self.parent_app.settings["theme"] = name
         self.parent_app.settings["custom_themes"] = fresh.get("custom_themes", {})
 
-        # закрываем диалог выбора темы
         self.accept()
-
-        # показываем оверлей и перезапускаем
         QTimer.singleShot(50, self.parent_app._restart_with_animation)
-
 
 class QtToast(QWidget):
     """Всплывающее уведомление для PyQt6."""

@@ -105,11 +105,23 @@ class FallingFXQt(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
         painter.setRenderHint(QPainter.RenderHint.TextAntialiasing, True)
 
+        # прозрачность эмодзи (если Liquid Glass включён)
+        try:
+            from modules import settings as _s
+            _settings = _s.load()
+            if _settings.get("liquid_glass", False):
+                opacity = 0.4 + 0.3 * (_settings.get("liquid_opacity", 70) / 100)
+            else:
+                opacity = 1.0
+        except Exception:
+            opacity = 1.0
+
+        painter.setOpacity(opacity)
+
         for obj in self.objects:
             font = QFont("Segoe UI Emoji", obj.size)
             painter.setFont(font)
 
-            # drawText в QRectF центрирует текст по горизонтали и вертикали
             rect = QRectF(obj.x - obj.size, obj.y - obj.size,
                           obj.size * 2, obj.size * 2)
             painter.drawText(
@@ -118,6 +130,7 @@ class FallingFXQt(QWidget):
                 obj.emoji,
             )
 
+        painter.setOpacity(1.0)
         painter.end()
 
     def resizeEvent(self, event):

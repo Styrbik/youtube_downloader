@@ -30,6 +30,9 @@ DEFAULTS = {
     "active_icon": "classic",
     "profiles": {},
     "custom_themes": {},   # ← НОВОЕ
+    "liquid_glass": False,        # ← добавить
+    "liquid_opacity": 70,         # ← добавить (в процентах)
+    "liquid_blur": 20,
 }
 
 
