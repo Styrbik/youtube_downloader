@@ -13,10 +13,8 @@ a = Analysis(
         ('ffmpeg.exe', '.'),
     ],
     hiddenimports=[
-        # системные модули
         'config',
         'settings',
-        # папка modules целиком
         'modules',
         'modules.bootstrap',
         'modules.core',
@@ -41,11 +39,15 @@ a = Analysis(
         'modules.updater',
         'modules.falling_fx',
         'modules.falling_fx_qt',
-        # сторонние
+        'modules.holiday_fx_qt',
+        'modules.background_widget',
+        # PyQt6
         'PyQt6',
         'PyQt6.QtCore',
         'PyQt6.QtWidgets',
         'PyQt6.QtGui',
+        'PyQt6.sip',
+        # сторонние
         'tkinter',
         'yt_dlp',
         'mutagen',
