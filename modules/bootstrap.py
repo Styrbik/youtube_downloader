@@ -20,6 +20,40 @@ if getattr(sys, 'frozen', False):
 else:
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     MEIPASS = BASE_DIR
+    
+def setup(app_id: str):
+    """
+    Полный bootstrap. Вызывать первым делом в downloader_*.py.
+    """
+    # чистим старые _MEI (от предыдущего запуска)
+    if getattr(sys, "frozen", False):
+        _cleanup_old_mei()
+
+    # чтобы можно было импортировать modules.*
+    sys.path.insert(0, BASE_DIR)
+    ...
+
+
+def _cleanup_old_mei():
+    """Удаляет старые временные папки _MEI от PyInstaller."""
+    import tempfile
+    import shutil
+    import glob
+
+    tmp = tempfile.gettempdir()
+    current_mei = getattr(sys, "_MEIPASS", None)
+
+    # ищем все _MEI* в TEMP
+    pattern = os.path.join(tmp, "_MEI*")
+    for path in glob.glob(pattern):
+        # не трогаем свою текущую
+        if current_mei and os.path.abspath(path) == os.path.abspath(current_mei):
+            continue
+        try:
+            shutil.rmtree(path, ignore_errors=True)
+            print(f"🧹 Удалён старый _MEI: {path}")
+        except Exception:
+            pass
 
 
 def _set_app_user_model_id(app_id: str):

@@ -2059,19 +2059,29 @@ class DownloaderApp(QMainWindow):
             except Exception:
                 pass
 
-        # --- перезапуск через QProcess ---
-        from PyQt6.QtCore import QProcess
+        # --- перезапуск ---
+        import subprocess
+        import threading
+        import time
 
         if getattr(sys, "frozen", False):
-            # запущено из exe
-            QProcess.startDetached(sys.executable, [])
+            # exe — запускаем отсоединённо, с задержкой
+            exe_path = sys.executable
+
+            def _delayed_launch():
+                time.sleep(2.0)  # ждём, пока родитель закроется
+                subprocess.Popen([exe_path],
+                                 creationflags=subprocess.DETACHED_PROCESS
+                                 | subprocess.CREATE_NEW_PROCESS_GROUP)
+
+            threading.Thread(target=_delayed_launch, daemon=True).start()
         else:
-            # запущено из скрипта
+            # скрипт
             script = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                 "downloader_qt.py"
             )
-            QProcess.startDetached(sys.executable, [script])
+            subprocess.Popen([sys.executable, script])
 
         QApplication.quit()
             

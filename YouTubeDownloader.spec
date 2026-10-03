@@ -14,11 +14,10 @@ a = Analysis(
     ],
     hiddenimports=[
         'config',
-        'settings',
+        'modules.settings',   # ← не 'settings'!
         'modules',
         'modules.bootstrap',
         'modules.core',
-        'modules.settings',
         'modules.gui_qt',
         'modules.gui_dark',
         'modules.launcher_qt',
@@ -41,6 +40,11 @@ a = Analysis(
         'modules.falling_fx_qt',
         'modules.holiday_fx_qt',
         'modules.background_widget',
+        # Python встроенные
+        '_overlapped',
+        'asyncio',
+        'asyncio.windows_events',
+        'asyncio.windows_utils',
         # PyQt6
         'PyQt6',
         'PyQt6.QtCore',
