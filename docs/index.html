@@ -11,9 +11,15 @@
   <meta property="og:description" content="Красивая качалка для YouTube и YouTube Music. Без подписок, без лимитов.">
   <meta property="og:url" content="https://styrbik.github.io/youtube_downloader/">
   <meta property="og:type" content="website">
+  <meta property="og:image" content="https://styrbik.github.io/youtube_downloader/preview.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://styrbik.github.io/youtube_downloader/preview.png">
 
-  <link rel="icon" href="icon.ico">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
 
   <style>
     /* ============ RESET & BASE ============ */
@@ -516,7 +522,6 @@
       pointer-events: none;
     }
 
-    /* ===== Кнопки слева / справа ===== */
     .carousel-btn {
       position: absolute;
       top: 50%;
@@ -925,7 +930,7 @@
         Без подписок, без лимитов, с темами и праздничными эффектами.
       </p>
       <div class="hero-buttons">
-        <a href="https://github.com/Styrbik/youtube_downloader/releases/latest/download/YouTubeDownloader.zip" class="btn btn-primary">
+        <a href="https://github.com/Styrbik/youtube_downloader/releases/latest" class="btn btn-primary">
           <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 12l-5-5h3V1h4v6h3l-5 5zm-6 2h12v2H2v-2z"/></svg>
           Скачать для Windows
         </a>
@@ -958,11 +963,14 @@
             <li>Праздничные темы с эффектами</li>
             <li>Автосортировка по папкам</li>
             <li>Метаданные и обложки</li>
+            <li>22 достижения</li>
+            <li>Liquid Glass</li>
+            <li>Тема Frostmourne</li>
           </ul>
           <p style="color: var(--fg-dim); font-size: 13px; margin-bottom: 8px;">Что пока нет:</p>
           <ul>
-            <li class="no">Плеер (будет в v0.5.1)</li>
-            <li class="no">Генератор иконок (будет в v0.5.1)</li>
+            <li class="no">Плеер (скоро)</li>
+            <li class="no">Генератор иконок (скоро)</li>
           </ul>
         </div>
 
@@ -1000,13 +1008,25 @@
         <div class="feature animate">
           <span class="feature-icon">&#127912;</span>
           <h4>Темы и праздники</h4>
-          <p>3 обычные темы (Тёмная, Бежевая, Красная) и 4 праздничные — с падающими тыквами, снежинками и цветами.</p>
+          <p>Обычные и праздничные темы — с падающими тыквами, снежинками, цветами и черепами.</p>
+        </div>
+
+        <div class="feature animate">
+          <span class="feature-icon">&#127942;</span>
+          <h4>22 достижения</h4>
+          <p>Скачивай, меняй темы, лови пасхалки — открывай достижения в отдельном окне с прогрессом.</p>
+        </div>
+
+        <div class="feature animate">
+          <span class="feature-icon">&#10052;</span>
+          <h4>Frostmourne</h4>
+          <p>Ледяная тема с падающими черепами, хрустом льда и голосом Артаса. «Клинок ждёт...»</p>
         </div>
 
         <div class="feature animate">
           <span class="feature-icon">&#127925;</span>
           <h4>Встроенный плеер</h4>
-          <p>Плеер для MP3 прямо в приложении: пауза, стоп, прогресс-бар и плейлист из истории скачанного.</p>
+          <p>Плеер для MP3 прямо в приложении (в Classic): пауза, стоп, прогресс-бар и плейлист из истории.</p>
         </div>
 
         <div class="feature animate">
@@ -1154,7 +1174,7 @@
     </div>
   </section>
 
-  <!-- УСТАНОВКА (В САМОМ НИЗУ) -->
+  <!-- УСТАНОВКА -->
   <section class="section" id="install">
     <div class="container">
       <h2 class="section-title animate">Как установить</h2>
@@ -1179,7 +1199,7 @@
       </div>
 
       <div style="text-align: center; margin-top: 40px;" class="animate">
-        <a href="https://github.com/Styrbik/youtube_downloader/releases/latest/download/YouTubeDownloader.zip" class="btn btn-primary">
+        <a href="https://github.com/Styrbik/youtube_downloader/releases/latest" class="btn btn-primary">
           <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 12l-5-5h3V1h4v6h3l-5 5zm-6 2h12v2H2v-2z"/></svg>
           Скачать последнюю версию
         </a>
@@ -1226,13 +1246,11 @@
     const CHANGELOG_URL = 'https://raw.githubusercontent.com/Styrbik/youtube_downloader/main/CHANGELOG.md';
 
     function renderMarkdown(md) {
-      // Простой рендер Markdown → HTML (только нужное: ##, ###, - , **)
       const lines = md.split('\n');
       let html = '';
       let inList = false;
 
       for (let line of lines) {
-        // Заголовок ## (но не #)
         if (/^## /.test(line)) {
           if (inList) {
             html += '</ul>';
@@ -1240,7 +1258,6 @@
           }
           html += `<h2>${line.replace(/^## /, '')}</h2>`;
         }
-        // Заголовок ###
         else if (/^### /.test(line)) {
           if (inList) {
             html += '</ul>';
@@ -1248,33 +1265,27 @@
           }
           html += `<h3>${line.replace(/^### /, '')}</h3>`;
         }
-        // Заголовок # (главный)
         else if (/^# /.test(line)) {
           if (inList) {
             html += '</ul>';
             inList = false;
           }
-          // пропускаем главный заголовок "# Changelog"
         }
-        // Список "- ..."
         else if (/^- /.test(line)) {
           if (!inList) {
             html += '<ul>';
             inList = true;
           }
           let text = line.replace(/^- /, '');
-          // жирный **text**
           text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
           html += `<li>${text}</li>`;
         }
-        // Пустая строка
         else if (line.trim() === '') {
           if (inList) {
             html += '</ul>';
             inList = false;
           }
         }
-        // Обычный текст
         else {
           if (inList) {
             html += '</ul>';
@@ -1319,10 +1330,8 @@
     document.querySelectorAll('.faq-item').forEach(item => {
       const q = item.querySelector('.faq-q');
       q.addEventListener('click', () => {
-        // закрываем все остальные
         const wasOpen = item.classList.contains('open');
         document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('open'));
-        // если был закрыт — открываем
         if (!wasOpen) {
           item.classList.add('open');
         }
@@ -1344,24 +1353,24 @@
       .then(data => {
         const badge = document.getElementById('version-badge');
 
-        // name = "v0.5.0 — QT Edition", fallback на tag_name если name пустой
         const releaseName = data.name || data.tag_name || 'unknown';
         badge.innerHTML = `&#9889; ${releaseName}`;
 
-        // (опционально) обновляем ссылки "Скачать" на последний релиз
-        const downloadUrl = data.assets && data.assets.length > 0
-          ? data.assets[0].browser_download_url
+        // ищем именно .zip в релизах
+        const zipAsset = data.assets
+          ? data.assets.find(a => a.name.endsWith('.zip'))
           : null;
+        const downloadUrl = zipAsset ? zipAsset.browser_download_url : null;
 
         if (downloadUrl) {
-          document.querySelectorAll('a[href*="releases/latest/download"]').forEach(link => {
+          document.querySelectorAll('a[href*="releases/latest"]').forEach(link => {
             link.href = downloadUrl;
           });
         }
       })
       .catch(err => {
         const badge = document.getElementById('version-badge');
-        badge.innerHTML = '&#9889; v0.5.0';
+        badge.innerHTML = '&#9889; v0.5.5';
         console.warn('Не удалось загрузить версию с GitHub:', err);
       });
 
@@ -1378,10 +1387,9 @@
     let currentSlide = 0;
     let autoplayTimer = null;
     let isPaused = false;
-    const AUTOPLAY_DELAY = 4000; // 4 секунды
+    const AUTOPLAY_DELAY = 4000;
 
     function goToSlide(index) {
-      // зацикливаем
       if (index < 0) {
         index = slides.length - 1;
       }
@@ -1391,11 +1399,9 @@
 
       currentSlide = index;
 
-      // сдвигаем весь трек влево/вправо
       const offset = -index * 100;
       track.style.transform = `translateX(${offset}%)`;
 
-      // обновляем точки
       dots.forEach((dot, i) => {
         dot.classList.toggle('active', i === index);
       });
@@ -1425,10 +1431,9 @@
       }
     }
 
-    // клики по кнопкам
     btnPrev.addEventListener('click', () => {
       prevSlide();
-      startAutoplay(); // сброс таймера
+      startAutoplay();
     });
 
     btnNext.addEventListener('click', () => {
@@ -1436,7 +1441,6 @@
       startAutoplay();
     });
 
-    // клики по точкам
     dots.forEach(dot => {
       dot.addEventListener('click', () => {
         const index = parseInt(dot.dataset.slide, 10);
@@ -1445,7 +1449,6 @@
       });
     });
 
-    // пауза при наведении
     carousel.addEventListener('mouseenter', () => {
       isPaused = true;
     });
@@ -1454,7 +1457,6 @@
       isPaused = false;
     });
 
-    // старт
     goToSlide(0);
     startAutoplay();
   </script>
