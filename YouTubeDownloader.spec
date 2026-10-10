@@ -17,12 +17,11 @@ datas = [
     ('CHANGELOG.md', '.'),
     ('ffmpeg.exe', '.'),
     ('version_info.txt', '.'),
+
+    # ---- АССЕТЫ (шрифты, курсоры, звуки, гифки) ----
+    ('assets', 'assets'),
+
 ]
-
-# ---- assets/ (шрифты, курсоры, звуки, гифки) ----
-if os.path.isdir('assets'):
-    datas.append(('assets', 'assets'))
-
 
 # ---- Модули (на случай, если есть не .py файлы) ----
 if os.path.isdir('modules'):
@@ -53,16 +52,16 @@ hiddenimports = [
     'modules.themes',
     'modules.theme_manager',
     'modules.theme_configurator',
-    'modules.theme_language',      # ← НОВОЕ
+    'modules.theme_language',
     'modules.achievements',
     'modules.holiday_fx_qt',
     'modules.background_widget',
     'modules.frost_fx_qt',
     'modules.falling_fx',
     'modules.falling_fx_qt',
-    'modules.gaster_dialog',       # ← НОВОЕ
-    'modules.sans_easter_egg',     # ← НОВОЕ
-    'modules.player_qt',           # ← НОВОЕ
+    'modules.gaster_dialog',
+    'modules.sans_easter_egg',
+    'modules.player_qt',
     'modules.gui_qt',
     'modules.gui_dark',
     'modules.launcher_qt',
@@ -81,8 +80,8 @@ hiddenimports = [
     'PyQt6.QtCore',
     'PyQt6.QtWidgets',
     'PyQt6.QtGui',
-    'PyQt6.QtMultimedia',          # ← НОВОЕ (для плеера)
-    'PyQt6.QtMultimediaWidgets',   # ← НОВОЕ (для QVideoWidget)
+    'PyQt6.QtMultimedia',
+    'PyQt6.QtMultimediaWidgets',
     'PyQt6.sip',
 
     # ---- Сторонние ----
@@ -101,19 +100,7 @@ hiddenimports = [
     'pystray',
 ]
 
-# Автосбор всех подмодулей yt_dlp (для свежих экстракторов)
 hiddenimports += collect_submodules('yt_dlp')
-
-
-# ============================================================
-#                    EXCLUDES (чтобы меньше весил)
-# ============================================================
-excludes = [
-    # Если что-то лишнее не нужно — вписывай сюда:
-    # 'matplotlib',
-    # 'IPython',
-    # 'pytest',
-]
 
 
 # ============================================================
@@ -128,10 +115,11 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=excludes,
+    excludes=[],
     noarchive=False,
     optimize=0,
 )
+
 pyz = PYZ(a.pure)
 
 exe = EXE(

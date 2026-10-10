@@ -20,33 +20,18 @@ if getattr(sys, 'frozen', False):
 else:
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     MEIPASS = BASE_DIR
-    
-def setup(app_id: str):
-    """
-    Полный bootstrap. Вызывать первым делом в downloader_*.py.
-    """
-    # чистим старые _MEI (от предыдущего запуска)
-    if getattr(sys, "frozen", False):
-        _cleanup_old_mei()
-
-    # чтобы можно было импортировать modules.*
-    sys.path.insert(0, BASE_DIR)
-    ...
 
 
 def _cleanup_old_mei():
     """Удаляет старые временные папки _MEI от PyInstaller."""
     import tempfile
-    import shutil
     import glob
 
     tmp = tempfile.gettempdir()
     current_mei = getattr(sys, "_MEIPASS", None)
 
-    # ищем все _MEI* в TEMP
     pattern = os.path.join(tmp, "_MEI*")
     for path in glob.glob(pattern):
-        # не трогаем свою текущую
         if current_mei and os.path.abspath(path) == os.path.abspath(current_mei):
             continue
         try:
@@ -65,12 +50,20 @@ def _set_app_user_model_id(app_id: str):
 
 
 def _unpack_assets():
-    """Копирует icons/, icon.ico, CHANGELOG.md, cover.png рядом с exe при первом запуске."""
+    """
+    Копирует ассеты рядом с exe при первом запуске.
+    Работает как для onedir, так и для onefile.
+    """
     assets = [
-        ('icons', 'icons'),           # папка
-        ('icon.ico', 'icon.ico'),     # файл
-        ('CHANGELOG.md', 'CHANGELOG.md'),
+        # ---- Одиночные файлы ----
+        ('icon.ico', 'icon.ico'),
         ('cover.png', 'cover.png'),
+        ('CHANGELOG.md', 'CHANGELOG.md'),
+
+        # ---- Папки ----
+        ('icons', 'icons'),
+        ('assets', 'assets'),              # ← НОВОЕ (шрифты, курсоры, звуки, гифки)
+        ('admin_assets', 'admin_assets'),  # ← НОВОЕ (звуки Артаса, тестовые файлы)
     ]
 
     for src_name, dst_name in assets:
@@ -78,16 +71,20 @@ def _unpack_assets():
         dst = os.path.join(BASE_DIR, dst_name)
 
         if not os.path.exists(src):
+            # Не падаем — просто пропускаем
             continue
 
         if os.path.isdir(src):
+            # Папка
             if not os.path.isdir(dst):
                 try:
                     shutil.copytree(src, dst)
                     print(f"📁 Распакована папка: {dst_name}")
                 except Exception as e:
                     print(f"⚠️ Не удалось распаковать {dst_name}: {e}")
+            # Если уже есть — не трогаем (не перезаписываем)
         else:
+            # Файл
             if not os.path.exists(dst):
                 try:
                     shutil.copy2(src, dst)
@@ -110,10 +107,14 @@ def setup(app_id: str):
     Полный bootstrap. Вызывать первым делом в downloader_*.py.
     
     app_id — уникальный идентификатор приложения для Windows,
-             например "Styfik.YouTubeDownloader.Tk.0.4.2"
+             например "Styrbik.YouTubeDownloader.Tk.0.4.2"
     """
     # чтобы можно было импортировать modules.*
     sys.path.insert(0, BASE_DIR)
+
+    # чистим старые _MEI (только в exe)
+    if getattr(sys, "frozen", False):
+        _cleanup_old_mei()
 
     _set_app_user_model_id(app_id)
 
