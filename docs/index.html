@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>YouTube Downloader — Скачивай без ограничений</title>
-  <meta name="description" content="Красивая качалка для YouTube и YouTube Music. Без подписок, без лимитов, с темами и праздничными эффектами.">
+  <meta name="description" content="Красивая качалка для YouTube и YouTube Music. Без подписок, без лимитов, с темами, пасхалками и праздничными эффектами.">
 
   <!-- Превью для Telegram/Discord -->
   <meta property="og:title" content="YouTube Downloader — Скачивай без ограничений">
@@ -688,6 +688,26 @@
       font-size: 14px;
     }
 
+    /* ============ EASTER EGGS ============ */
+    .eggs-hint {
+      text-align: center;
+      color: var(--fg-dim);
+      font-size: 13px;
+      font-style: italic;
+      margin-top: 30px;
+      opacity: 0.7;
+    }
+
+    .eggs-hint code {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 2px 8px;
+      border-radius: 5px;
+      color: var(--accent);
+      font-family: Consolas, monospace;
+      font-size: 12px;
+    }
+
     /* ============ FAQ ============ */
     .faq {
       max-width: 800px;
@@ -927,7 +947,7 @@
       </h1>
       <p>
         Красивая качалка для YouTube, YouTube Music и других платформ.
-        Без подписок, без лимитов, с темами и праздничными эффектами.
+        Без подписок, без лимитов, с темами, плеером и пасхалками.
       </p>
       <div class="hero-buttons">
         <a href="https://github.com/Styrbik/youtube_downloader/releases/latest" class="btn btn-primary">
@@ -959,17 +979,19 @@
           </p>
           <ul>
             <li>Современный интерфейс</li>
-            <li>Плавные анимации и тени</li>
-            <li>Праздничные темы с эффектами</li>
+            <li>Встроенный плеер (MP3 + видео)</li>
+            <li>Полноэкранный режим с overlay</li>
+            <li>Праздничные темы и эффекты</li>
             <li>Автосортировка по папкам</li>
             <li>Метаданные и обложки</li>
-            <li>22 достижения</li>
+            <li>24 достижения</li>
             <li>Liquid Glass</li>
             <li>Тема Frostmourne</li>
+            <li>Язык тем (Undertale, Minecraft)</li>
+            <li>🎲 Рандом темы</li>
           </ul>
           <p style="color: var(--fg-dim); font-size: 13px; margin-bottom: 8px;">Что пока нет:</p>
           <ul>
-            <li class="no">Плеер (скоро)</li>
             <li class="no">Генератор иконок (скоро)</li>
           </ul>
         </div>
@@ -1006,14 +1028,20 @@
 
       <div class="features">
         <div class="feature animate">
+          <span class="feature-icon">&#127916;</span>
+          <h4>Встроенный плеер</h4>
+          <p>MP3 и видео прямо в приложении. Полноэкранный режим, overlay с контролами как в YouTube, repeat и shuffle.</p>
+        </div>
+
+        <div class="feature animate">
           <span class="feature-icon">&#127912;</span>
           <h4>Темы и праздники</h4>
-          <p>Обычные и праздничные темы — с падающими тыквами, снежинками, цветами и черепами.</p>
+          <p>50+ тем, праздничные эффекты — с падающими тыквами, снежинками, цветами и черепами.</p>
         </div>
 
         <div class="feature animate">
           <span class="feature-icon">&#127942;</span>
-          <h4>22 достижения</h4>
+          <h4>24 достижения</h4>
           <p>Скачивай, меняй темы, лови пасхалки — открывай достижения в отдельном окне с прогрессом.</p>
         </div>
 
@@ -1024,9 +1052,21 @@
         </div>
 
         <div class="feature animate">
-          <span class="feature-icon">&#127925;</span>
-          <h4>Встроенный плеер</h4>
-          <p>Плеер для MP3 прямо в приложении (в Classic): пауза, стоп, прогресс-бар и плейлист из истории.</p>
+          <span class="feature-icon">&#128123;</span>
+          <h4>Секретные пасхалки</h4>
+          <p>Скрытые фичи </code> в поле URL.</p>
+        </div>
+
+        <div class="feature animate">
+          <span class="feature-icon">&#127918;</span>
+          <h4>Язык тем</h4>
+          <p>Undertale говорит «Вы наполнились РЕШИМОСТЬЮ», Minecraft копает шахты. У каждой темы свой язык.</p>
+        </div>
+
+        <div class="feature animate">
+          <span class="feature-icon">&#127922;</span>
+          <h4>Рандом темы</h4>
+          <p>Кнопка «Случайная тема» или авторандом при каждом запуске. Каждый день — новый вайб.</p>
         </div>
 
         <div class="feature animate">
@@ -1052,9 +1092,15 @@
           <h4>Автообновление yt-dlp</h4>
           <p>Свежая версия yt-dlp скачивается с PyPI в фоне. Никаких ручных обновлений.</p>
         </div>
+
+        <div class="feature animate">
+          <span class="feature-icon">&#129504;</span>
+          <h4>Liquid Glass</h4>
+          <p>Полупрозрачные карточки как в iOS 26. Работает поверх любой темы, регулируется прозрачность и размытие.</p>
+        </div>
       </div>
-    </div>
-  </section>
+
+
 
   <!-- СКРИНШОТЫ (КАРУСЕЛЬ) -->
   <section class="section" id="screenshots">
@@ -1138,6 +1184,16 @@
           </div>
           <div class="faq-a">
             <p>Да, полностью бесплатно. Никаких подписок, рекламы, ограничений по количеству или длине видео. Лицензия MIT — делай что хочешь.</p>
+          </div>
+        </div>
+
+        <div class="faq-item animate">
+          <div class="faq-q">
+            <span>🥚 Какие есть пасхалки?</span>
+            <span class="arrow">▼</span>
+          </div>
+          <div class="faq-a">
+            <p>Секретные команды в поле ссылки: <code>?sans</code> — Санс из Undertale, <code>?gaster</code> — Гастер. Ещё есть админ-панель, праздничные темы, и множество достижений. Попробуй найти всё сам 😉</p>
           </div>
         </div>
 
@@ -1370,7 +1426,7 @@
       })
       .catch(err => {
         const badge = document.getElementById('version-badge');
-        badge.innerHTML = '&#9889; v0.5.5';
+        badge.innerHTML = '&#9889; v0.6.0';
         console.warn('Не удалось загрузить версию с GitHub:', err);
       });
 
