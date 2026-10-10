@@ -39,6 +39,8 @@ try:
     HAS_HOLIDAY_FX = True
 except ImportError:
     HAS_HOLIDAY_FX = False
+
+try:
     from modules import tray as tray_module
     HAS_TRAY = True
 except ImportError:
@@ -231,18 +233,18 @@ def _apply_theme(theme_name):
     TITLEBAR_BG = _darker(BG, 0.7)
 
 
-def build_qss():
+def build_qss(font_family="Segoe UI"):
     print(f"DEBUG BG={BG}, BG_CARD={BG_CARD}, BORDER={BORDER}")
     return f"""
         QMainWindow {{
             background-color: {BG};
             color: {FG};
-            font-family: "Segoe UI", "Segoe UI Emoji";
+            font-family: "{font_family}", "Segoe UI Emoji";
         }}
         QWidget {{
             background-color: {BG};
             color: {FG};
-            font-family: "Segoe UI", "Segoe UI Emoji";
+            font-family: "{font_family}", "Segoe UI Emoji";
         }}
         QLabel {{ background: transparent; }}
         QFrame#card {{
@@ -584,23 +586,8 @@ class GlowButton(QPushButton):
         self._anim = QPropertyAnimation(self._glow, b"blurRadius")
         self._anim.setDuration(180)
         self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-        self.clicked.connect(self._play_click_sound)
+
         
-    def _play_click_sound(self):
-        """Играет клик или хруст льда (для Frostmourne)."""
-        try:
-            from modules import settings as _s
-            _settings = _s.load()
-            theme = _settings.get("theme", "dark")
-            forced = _settings.get("admin_forced_holiday")
-            if theme == "frostmourne" or forced == "frostmourne":
-                from modules.sounds import ice_crack
-                ice_crack()
-            else:
-                from modules.sounds import click
-                click()
-        except Exception:
-            pass
 
 
     def set_glow(self, value):
@@ -763,11 +750,8 @@ class QualityGroup(QWidget):
         self.set_items([])
         
 class ClickSoundFilter(QObject):
-    """Глобальный фильтр — играет звук при клике на любую кнопку/радио."""
-
     def eventFilter(self, obj, event):
         if event.type() == event.Type.MouseButtonPress:
-            # ловим кнопки, радио, чекбоксы
             from PyQt6.QtWidgets import QPushButton, QRadioButton, QCheckBox
             if isinstance(obj, (QPushButton, QRadioButton, QCheckBox)):
                 try:
@@ -775,7 +759,15 @@ class ClickSoundFilter(QObject):
                     _settings = _s.load()
                     theme = _settings.get("theme", "dark")
                     forced = _settings.get("admin_forced_holiday")
-                    if theme == "frostmourne" or forced == "frostmourne":
+                    actual_theme = forced if forced else theme
+
+                    # Сначала пробуем звук темы
+                    from modules.sounds import play_theme_sound
+                    if play_theme_sound(actual_theme, "click"):
+                        return super().eventFilter(obj, event)
+
+                    # Fallback
+                    if actual_theme == "frostmourne":
                         from modules.sounds import ice_crack
                         ice_crack()
                     else:
@@ -819,6 +811,22 @@ class DownloaderApp(QMainWindow):
         self._holiday_mode = False
         self._holiday_theme = None
         self._holiday_greeting = None
+        # Рандом темы при запуске
+        if self.settings.get("random_theme_on_start", False):
+            try:
+                import random
+                from modules.themes import THEMES
+                _keys = [k for k in THEMES.keys() if not k.startswith("custom_")]
+                if _keys:
+                    _current = self.settings.get("theme", "dark")
+                    _choices = [k for k in _keys if k != _current] or _keys
+                    _new_theme = random.choice(_choices)
+                    self.settings["theme"] = _new_theme
+                    settings.save(self.settings)
+                    print(f"🎲 Случайная тема при запуске: {_new_theme}")
+            except Exception as e:
+                print(f"⚠️ Рандом темы: {e}")
+
         self._real_theme = self.settings.get("theme", "dark")
         self._falling_fx = None
         self._holiday_lights = None
@@ -866,6 +874,8 @@ class DownloaderApp(QMainWindow):
 
         theme_to_apply = self._holiday_theme if self._holiday_mode else self._real_theme
         _apply_theme(theme_to_apply)
+        # Применяем шрифт и курсор темы
+        self._apply_theme_style(theme_to_apply)
         
         # если тема Frostmourne — играем "К чёрту людей!"
         if self._real_theme == "frostmourne" or self._holiday_theme == "frostmourne":
@@ -880,10 +890,14 @@ class DownloaderApp(QMainWindow):
             )
 
         # заголовок зависит от темы
-        if self._holiday_theme == "frostmourne" or self._real_theme == "frostmourne":
+        from modules.theme_language import get_language
+        _active_theme = self._holiday_theme if self._holiday_mode else self._real_theme
+
+        if _active_theme == "frostmourne":
             self.setWindowTitle("❄️ Frostmourne Hungers")
         else:
-            self.setWindowTitle(APP_TITLE)
+            _lang = get_language(_active_theme)
+            self.setWindowTitle(_lang["title"])
         if self.settings.get("liquid_glass", False):
             # для Acrylic нужен обычный frameless, но с прозрачным фоном
             self.setWindowFlags(Qt.WindowType.FramelessWindowHint)
@@ -947,13 +961,52 @@ class DownloaderApp(QMainWindow):
         # глобальный фильтр кликов — для звука на всех кнопках
         self._click_filter = ClickSoundFilter(self)
         QApplication.instance().installEventFilter(self._click_filter)
-        # глобальный фильтр кликов — для звука
-        self._click_filter = ClickSoundFilter(self)
-        QApplication.instance().installEventFilter(self._click_filter)
 
     def _check_cookies_on_start(self):
         # Куки отключены — модуль переименован
         pass
+
+    def _apply_theme_style(self, theme_name):
+        """Применяет шрифт, курсор и звуки темы."""
+        from modules.themes import get_theme_font, get_theme_cursor
+        from PyQt6.QtGui import QFontDatabase, QCursor, QPixmap, QFont
+        from PyQt6.QtCore import Qt
+        import os
+
+        # Шрифт
+        font_path = get_theme_font(theme_name)
+        if font_path and os.path.exists(font_path):
+            font_id = QFontDatabase.addApplicationFont(font_path)
+            if font_id >= 0:
+                families = QFontDatabase.applicationFontFamilies(font_id)
+                if families:
+                    self._theme_font_family = families[0]
+                    font = QFont(families[0])
+                    font.setPointSize(10)
+                    self.setFont(font)
+                    print(f"🎨 Шрифт темы: {families[0]}")
+        else:
+            self._theme_font_family = "Segoe UI"
+
+        # Курсор
+        cursor_path = get_theme_cursor(theme_name)
+        if cursor_path and os.path.exists(cursor_path):
+            if cursor_path.lower().endswith((".cur", ".ani")):
+                # Windows-курсор — Qt понимает напрямую
+                cursor = QCursor(cursor_path)
+                print(f"🎨 Курсор темы: {theme_name} (.cur)")
+            else:
+                # PNG — масштабируем
+                pixmap = QPixmap(cursor_path).scaled(
+                    16, 16,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.FastTransformation,
+                )
+                cursor = QCursor(pixmap, pixmap.width() // 2, 0)
+                print(f"🎨 Курсор темы: {theme_name} (png)")
+            self.setCursor(cursor)
+            QApplication.setOverrideCursor(cursor)
+
     def _open_admin_panel(self):
         """Открывает админ-панель."""
         # достижения: админка
@@ -970,22 +1023,19 @@ class DownloaderApp(QMainWindow):
             print(f"⚠️ Достижения (админка): {e}")
 
         AdminPanelDialog(self).exec()
-    
+
     def _open_achievements(self):
         """Открывает окно достижений."""
         AchievementsDialog(self).exec()
-        
+
     def changeEvent(self, event):
         """Ловим разворачивание из панели задач для анимации."""
         if event.type() == event.Type.WindowStateChange:
             if self.windowState() & Qt.WindowState.WindowMinimized:
-                # окно сворачивается — анимацию делает _animate_minimize
                 pass
             else:
-                # окно разворачивается — анимируем
                 if not getattr(self, "_restore_anim_running", False):
                     self._animate_restore()
-        # при восстановлении — перезапускаем падающие
         if getattr(self, "_holiday_mode", False) and getattr(self, "_falling_fx", None):
             if not self._falling_fx.isVisible():
                 QTimer.singleShot(100, self._restart_falling_fx)
@@ -996,7 +1046,7 @@ class DownloaderApp(QMainWindow):
                     self._falling_fx.raise_()
                 except Exception:
                     pass
-                    
+
         super().changeEvent(event)
 
     def _animate_restore(self):
@@ -1061,7 +1111,7 @@ class DownloaderApp(QMainWindow):
             btn.set_glow(intensity)
 
     def _pick_size(self, saved_geom):
-        default_w, default_h = 900, 640
+        default_w, default_h = 1100, 750
         w, h = default_w, default_h
         if saved_geom:
             try:
@@ -1082,7 +1132,8 @@ class DownloaderApp(QMainWindow):
         return w, h
 
     def _apply_qss(self):
-        self.setStyleSheet(build_qss())
+        font_family = getattr(self, "_theme_font_family", "Segoe UI")
+        self.setStyleSheet(build_qss(font_family))
         # сообщаем BackgroundWidget текущий цвет фона
         if HAS_BACKGROUND and hasattr(self, "_central_bg"):
             try:
@@ -1145,6 +1196,7 @@ class DownloaderApp(QMainWindow):
             b.setObjectName("titlebtn")
             b.setFixedHeight(28)
             b.setCursor(Qt.CursorShape.PointingHandCursor)
+            font_family = getattr(self, "_theme_font_family", "Segoe UI")
             b.setStyleSheet(f"""
                 QPushButton {{
                     background-color: {TITLEBAR_BG};
@@ -1152,6 +1204,7 @@ class DownloaderApp(QMainWindow):
                     border: none;
                     border-radius: 6px;
                     padding: 4px 10px;
+                    font-family: "{font_family}", "Segoe UI Emoji";
                     font-size: 11px;
                 }}
                 QPushButton:hover {{
@@ -1240,6 +1293,14 @@ class DownloaderApp(QMainWindow):
         self.url_input.textChanged.connect(self._on_url_change)
         url_row.addWidget(self.url_input, stretch=1)
 
+        # Перевод по теме
+        from modules.theme_language import get_language
+        _theme_now = self._holiday_theme if self._holiday_mode else self._real_theme
+        _lang = get_language(_theme_now)
+
+        # Placeholder для URL
+        self.url_input.setPlaceholderText(_lang["placeholder"])
+
         self.btn_paste = QPushButton("📋")
         self.btn_paste.setFixedWidth(42)
         self.btn_paste.setToolTip("Вставить из буфера")
@@ -1275,6 +1336,7 @@ class DownloaderApp(QMainWindow):
 
         self.dir_card.add_layout(dir_row)
         left_col.addWidget(self.dir_card)
+        
 
         # Настройки
         self.opts_card = Card()
@@ -1405,13 +1467,20 @@ class DownloaderApp(QMainWindow):
 
         bottom_layout.addLayout(prog_row)
 
-        self.status_label = QLabel("Готов к работе")
+        self.status_label = QLabel("")
+        print("🔍 status_label создан с текстом: Готов к работе")  # ← отладка
         self.status_label.setStyleSheet(f"color: {FG_DIM}; font-size: 11px;")
         bottom_layout.addWidget(self.status_label)
 
         root_layout.addWidget(self.bottom)
-
+        # Перевод кнопок
+        self.btn_download.setText(f"⬇  {_lang['btn_download']}")
+        self.btn_fetch.setText(f"🔍  {_lang['btn_fetch']}")
+        self.btn_choose_dir.setText(_lang["btn_choose_dir"])
         self._setup_shortcuts()
+        
+        # Стартовый статус — через _set_status (для перевода)
+        QTimer.singleShot(100, lambda: self._set_status("Готов к работе"))
 
     # --------------------------------------------------------
     #                    ХЕЛПЕРЫ UI
@@ -1446,12 +1515,8 @@ class DownloaderApp(QMainWindow):
     def _on_radio_change(self, name, value, checked):
         if not checked:
             return
-        if not self._silent:
-            try:
-                from modules.sounds import radio
-                radio()
-            except Exception:
-                pass
+        # Звук играется через ClickSoundFilter — не дублируем
+        self.settings[name] = value
 
     def _paint_cheek(self, event):
         painter = QPainter(self.cheek)
@@ -1628,11 +1693,68 @@ class DownloaderApp(QMainWindow):
         for rb in self._rb_container.values():
             rb.setEnabled(not is_audio)
         self._rb_audio_mode["none"].setEnabled(not is_audio)
+        self._rb_audio_mode["none"].setEnabled(not is_audio)
 
     # --------------------------------------------------------
     #                    FETCH
     # --------------------------------------------------------
     def _on_fetch(self):
+        # ---------- ПАСХАЛКИ ПО URL ----------
+        url = self.url_input.text().strip().lower()
+        
+        # ?gaster или просто gaster — принудительный Гастер
+        if url in ("?gaster", "gaster", "?ga", "about:gaster"):
+            print("💀 GASTER MANUAL CALL")
+            self.url_input.setText("")
+
+            # Достижение ПЕРЕД показом (потому что после Гастера приложение вылетает)
+            try:
+                from modules import achievements as ach_mod
+                from modules import settings as _s
+                unlocked = ach_mod.track_gaster_seen(self.settings)
+                _s.save(self.settings)
+                for ach_id in unlocked:
+                    ach = ach_mod.ACHIEVEMENTS.get(ach_id, {})
+                    name = ach.get("name", ach_id)
+                    print(f"🏆 Достижение разблокировано: {name}")
+            except Exception as e:
+                print(f"⚠️ Достижение (Гастер): {e}")
+
+            try:
+                from modules.gaster_dialog import show_gaster
+                show_gaster(self)
+            except Exception as e:
+                print(f"⚠️ Гастер: {e}")
+            return
+        
+        # ?sans или sans — Санс
+        if url in ("?sans", "sans", "?sa", "about:sans"):
+            print("👁️ SANS MANUAL CALL")
+            self.url_input.setText("")
+
+            # Достижение
+            try:
+                from modules import achievements as ach_mod
+                unlocked = ach_mod.track_sans_seen(self.settings)
+                for ach_id in unlocked:
+                    ach = ach_mod.ACHIEVEMENTS.get(ach_id, {})
+                    name = ach.get("name", ach_id)
+                    QTimer.singleShot(1500, lambda n=name: QtToast(
+                        self, f"🏆 Достижение: {n}", duration=4000
+                    ))
+                from modules import settings as _s
+                _s.save(self.settings)
+            except Exception as e:
+                print(f"⚠️ Достижение (Санс): {e}")
+
+            try:
+                from modules.sans_easter_egg import show_sans
+                show_sans(self)
+            except Exception as e:
+                print(f"⚠️ Санс: {e}")
+            return
+        # ---------- КОНЕЦ ПАСХАЛОК ----------
+        
         if self.downloading or self._fetch_in_progress:
             return
         self._fetch_in_progress = True
@@ -1937,13 +2059,32 @@ class DownloaderApp(QMainWindow):
 
         settings.save(self.settings)
 
+        from modules.theme_language import get_language
+        _active_theme = self._holiday_theme if self._holiday_mode else self._real_theme
+        _lang = get_language(_active_theme)
+
         try:
             if latest_file:
-                QtToast(self, f"✅ Файл сохранён:\n{os.path.basename(latest_file)}")
+                QtToast(self, f"{_lang['toast_saved']}:\n{os.path.basename(latest_file)}")
             else:
-                QtToast(self, f"✅ Файл сохранён:\n{output_dir}")
+                QtToast(self, f"{_lang['toast_saved']}:\n{output_dir}")
         except Exception as e:
             print(f"⚠️ Ошибка тоста: {e}")
+        # Звук окончания загрузки — из темы
+        try:
+            from modules.sounds import play_theme_sound
+            from modules import settings as _s
+            _settings = _s.load()
+            theme = _settings.get("theme", "dark")
+            forced = _settings.get("admin_forced_holiday")
+            actual = forced if forced else theme
+
+            if not play_theme_sound(actual, "done"):
+                # Fallback — обычный звук
+                from modules.sounds import done
+                done()
+        except Exception as e:
+            print(f"⚠️ Звук окончания: {e}")
         # достижения: скачивание
         try:
             from modules import achievements as ach_mod
@@ -1965,6 +2106,23 @@ class DownloaderApp(QMainWindow):
         self.btn_refresh.setEnabled(True)
         self._set_download_btn_normal_mode()
         self._set_status("Ошибка скачивания")
+
+        # Звук ошибки — из темы
+        try:
+            from modules.sounds import play_theme_sound
+            from modules import settings as _s
+            _settings = _s.load()
+            theme = _settings.get("theme", "dark")
+            forced = _settings.get("admin_forced_holiday")
+            actual = forced if forced else theme
+
+            if not play_theme_sound(actual, "error"):
+                # Fallback — обычный звук
+                from modules.sounds import error
+                error()
+        except Exception as e:
+            print(f"⚠️ Звук ошибки: {e}")
+
         QMessageBox.critical(self, "Ошибка", msg)
         
     # --------------------------------------------------------
@@ -2042,9 +2200,62 @@ class DownloaderApp(QMainWindow):
         return "overwrite"
 
     def _set_status(self, text):
-        # если тема Frostmourne — переводим на язык Артаса
-        if self._holiday_theme == "frostmourne" or self._real_theme == "frostmourne":
+        # Определяем активную тему
+        theme = self.settings.get("theme", "dark")
+        forced = self.settings.get("admin_forced_holiday")
+        actual = forced if forced else theme
+
+        # Frostmourne — язык Артаса
+        if actual == "frostmourne":
             text = self._translate_to_arthas(text)
+            self.status_label.setText(text)
+            return
+
+        # Undertale / Minecraft — переводим через theme_language
+        try:
+            from modules.theme_language import get_language
+            lang = get_language(actual)
+        except Exception:
+            self.status_label.setText(text)
+            return
+
+        # Нормализуем
+        clean = text.strip()
+        clean_lower = clean.lower()
+
+        # Точные совпадения
+        exact_map = {
+            "готов к работе": lang["status_ready"],
+            "получаю форматы...": lang["status_fetching"],
+            "получаю форматы": lang["status_fetching"],
+            "скачиваю...": lang["status_downloading"],
+            "скачиваю": lang["status_downloading"],
+            "✅ готово!": lang["status_done"],
+            "✅ готово": lang["status_done"],
+            "ошибка скачивания": lang["status_error"],
+            "ошибка получения форматов": lang["status_error"],
+            "⏹ отменено": lang["status_cancel"],
+            "⏭ пропущено (файл уже есть)": lang["status_cancel"],
+            "⏭ пропущено": lang["status_cancel"],
+        }
+
+        if clean_lower in exact_map:
+            text = exact_map[clean_lower]
+        else:
+            if clean.startswith("Найдено: "):
+                n = clean.replace("Найдено: ", "").strip()
+                text = lang["status_found"].format(n)
+            elif clean.startswith("✅ Готово!"):
+                suffix = clean.replace("✅ Готово!", "").strip()
+                if suffix:
+                    text = f"{lang['status_done']} {suffix}"
+                else:
+                    text = lang["status_done"]
+            elif clean.startswith("✅ Файл сохранён"):
+                text = lang["toast_saved"]
+            elif clean.startswith("⏭ Пропущено"):
+                text = lang["status_cancel"]
+
         self.status_label.setText(text)
 
     def _translate_to_arthas(self, text):
@@ -2209,8 +2420,16 @@ class DownloaderApp(QMainWindow):
         IconManagerDialog(self).exec()
 
     def _open_player(self):
-        QMessageBox.information(self, "Плеер", "🎵 Плеер появится в следующем обновлении.")
-
+        """Открывает встроенный плеер."""
+        from modules.player_qt import PlayerWindow
+        # Если уже открыт — фокус на него
+        if getattr(self, "_player_window", None) and self._player_window.isVisible():
+            self._player_window.raise_()
+            self._player_window.activateWindow()
+            return
+        # Иначе — создаём новый
+        self._player_window = PlayerWindow(parent_app=self)
+        self._player_window.show()
     def _open_in_browser(self):
         if self.current_url:
             webbrowser.open(self.current_url)
@@ -2404,6 +2623,14 @@ class DownloaderApp(QMainWindow):
         self._restart_fade_in = fade_in
         self._restart_fade_out = fade_out
 
+        # Закрываем плеер при смене темы
+        if getattr(self, "_player_window", None):
+            try:
+                self._player_window.close()
+                self._player_window = None
+            except Exception:
+                pass
+
     def _do_restart(self):
         """Перезапускает приложение. Работает и в скрипте, и в exe."""
         # сохраняем состояние настроек
@@ -2566,6 +2793,8 @@ class SettingsDialog(QDialog):
         add_check("auto_update_ytdlp", "📦 Автообновление yt-dlp")
         add_check("auto_sort", "📂 Автосортировка по папкам")
         add_check("check_updates", "🔄 Проверять обновления")
+        add_check("random_theme_on_start", "🎲 Случайная тема при запуске",
+                  "Каждый раз новая тема при старте приложения")
 
         inner_layout.addStretch()
         
@@ -3115,6 +3344,12 @@ class ThemeDialog(QDialog):
         b_delete.clicked.connect(self._delete_theme)
         btn_row.addWidget(b_delete)
 
+        b_random = QPushButton("🎲 Случайная")
+        b_random.setCursor(Qt.CursorShape.PointingHandCursor)
+        b_random.setToolTip("Выбрать случайную тему из всех доступных")
+        b_random.clicked.connect(self._random_theme)
+        btn_row.addWidget(b_random)
+
         btn_row.addStretch()
 
         b_close = QPushButton("Закрыть")
@@ -3291,14 +3526,63 @@ class ThemeDialog(QDialog):
             )
             self.accept()
             QTimer.singleShot(50, lambda: ThemeDialog(self.parent_app).exec())
+            
+    def _random_theme(self):
+        """Ставит случайную тему из всех доступных."""
+        import random
+        from modules.themes import THEMES
+        from modules import theme_manager
+
+        # Собираем все ключи: обычные + кастомные
+        keys = [k for k in THEMES.keys() if not k.startswith("custom_")]
+        for t in theme_manager.list_custom_themes():
+            keys.append(t["id"])
+
+        if not keys:
+            return
+
+        # Рандомим, но не повторяем текущую
+        current = self.parent_app.settings.get("theme", "dark")
+        choices = [k for k in keys if k != current] or keys
+        theme_key = random.choice(choices)
+
+        # Название для тоста
+        if theme_key in THEMES:
+            theme_name = THEMES[theme_key].get("name", theme_key)
+        else:
+            t = theme_manager.get_custom_theme(theme_key)
+            theme_name = t["name"] if t else theme_key
+
+        # Тост
+        try:
+            QtToast(
+                self.parent_app,
+                f"🎲 Случайная тема: {theme_name}",
+                duration=2000,
+            )
+        except Exception:
+            pass
+
+        # Применяем (тот же путь, что и обычный выбор темы)
+        self._set_theme(theme_key)
 
     def _set_theme(self, name):
         """Применяет тему с анимацией и перезапуском."""
         from modules import settings as _settings_mod
 
+        # === Если юзер выбрал тему вручную — снимаем рандом при запуске ===
+        if self.parent_app.settings.get("random_theme_on_start", False):
+            self.parent_app.settings["random_theme_on_start"] = False
+            print("🎲 Рандом при запуске отключён (юзер выбрал тему вручную)")
+
+        # Загружаем свежий конфиг
         fresh = _settings_mod.load()
         fresh["theme"] = name
+        # сохраняем в свежий конфиг сброс флажка тоже
+        fresh["random_theme_on_start"] = False
         _settings_mod.save(fresh)
+
+        # Обновляем в памяти приложения
         self.parent_app.settings["theme"] = name
         self.parent_app.settings["custom_themes"] = fresh.get("custom_themes", {})
 
@@ -3312,7 +3596,6 @@ class ThemeDialog(QDialog):
                 QTimer.singleShot(1000, lambda n=ach_name: QtToast(
                     self.parent_app, f"🏆 Достижение: {n}", duration=4000
                 ))
-            # сохраняем прогресс
             _settings_mod.save(self.parent_app.settings)
         except Exception as e:
             print(f"⚠️ Достижения (тема): {e}")
@@ -3323,6 +3606,7 @@ class ThemeDialog(QDialog):
                 ice_crack()
             except Exception:
                 pass
+
         self.accept()
         QTimer.singleShot(50, self.parent_app._restart_with_animation)
 
@@ -3986,6 +4270,22 @@ def run():
         startup()
     except Exception:
         pass
+
+    # === ПАСХАЛКА ГАСТЕРА — ДО ГЛАВНОГО ОКНА ===
+    # Проверяем шанс при ЗАПУСКЕ, если тема — undertale
+    try:
+        from modules import settings as _s
+        s = _s.load()
+        if s.get("theme") == "undertale":
+            from modules.gaster_dialog import check_gaster_chance, show_gaster
+            if check_gaster_chance():
+                print("💀 GASTER CHANCE HIT — до главного окна")
+                show_gaster(None)
+                # show_gaster → sys.exit(0), окно НЕ создастся
+                return
+    except Exception as e:
+        print(f"⚠️ Гастер: {e}")
+    # === КОНЕЦ ===
 
     window = DownloaderApp()
     window.show()

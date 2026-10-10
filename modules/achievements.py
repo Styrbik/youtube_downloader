@@ -150,6 +150,18 @@ ACHIEVEMENTS = {
         "category": "secret",
         "target": 1,
     },
+    "sans_seen": {
+        "name": "👁️ Увидел Санса",
+        "desc": "чел, я тут",
+        "category": "secret",
+        "target": 1,
+    },
+    "gaster_seen": {
+        "name": "💀 Гастер найден",
+        "desc": """✋︎🕯︎💣︎ ☟︎☜︎☼︎☜︎☞︎✋︎☠︎👎︎ 💣︎☜︎""",
+        "category": "secret",
+        "target": 1,
+    },
 }
 
 
@@ -225,6 +237,7 @@ def unlock(settings, ach_id, value=None):
 def reset_all(settings):
     """Сбрасывает все достижения."""
     settings["achievements"] = {}
+    settings["used_themes"] = []  # ← добавить
     return settings
 
 
@@ -263,9 +276,18 @@ def track_download(settings, fmt, mode):
     """
     unlocked = []
 
-    # считаем скачивания
-    history = settings.get("history", [])
-    total = len(history)
+    # отдельный счётчик (не зависит от history[:50])
+    counts = settings.get("download_counts", {})
+    counts["total"] = counts.get("total", 0) + 1
+    if mode == "audio":
+        counts["audio"] = counts.get("audio", 0) + 1
+    else:
+        counts["video"] = counts.get("video", 0) + 1
+    settings["download_counts"] = counts
+
+    total = counts["total"]
+    audio_count = counts.get("audio", 0)
+    video_count = counts.get("video", 0)
 
     if unlock(settings, "first_download", total):
         unlocked.append("first_download")
@@ -278,23 +300,18 @@ def track_download(settings, fmt, mode):
     if unlock(settings, "five_hundred_downloads", total):
         unlocked.append("five_hundred_downloads")
 
-    # аудио
     if mode == "audio":
-        audio_count = sum(1 for h in history if h.get("file", "").lower().endswith(".mp3"))
         if unlock(settings, "ten_audio", audio_count):
             unlocked.append("ten_audio")
         if unlock(settings, "fifty_audio", audio_count):
             unlocked.append("fifty_audio")
 
-        # битрейт 320
         abr = fmt.get("abr") or 0
         if abr >= 320:
             if unlock(settings, "bitrate_320"):
                 unlocked.append("bitrate_320")
 
-    # видео
     if mode == "video":
-        video_count = sum(1 for h in history if h.get("file", "").lower().endswith((".mp4", ".mkv", ".webm")))
         if unlock(settings, "ten_video", video_count):
             unlocked.append("ten_video")
 
@@ -306,7 +323,6 @@ def track_download(settings, fmt, mode):
             if unlock(settings, "quality_1080"):
                 unlocked.append("quality_1080")
 
-    # время суток
     now = datetime.now()
     if now.hour >= 23 or now.hour < 1:
         if unlock(settings, "night_owl"):
@@ -315,7 +331,6 @@ def track_download(settings, fmt, mode):
         if unlock(settings, "early_bird"):
             unlocked.append("early_bird")
 
-    # праздники
     if now.month == 10 and now.day == 31:
         if unlock(settings, "halloween"):
             unlocked.append("halloween")
@@ -345,4 +360,19 @@ def track_frostmourne_taken(settings):
     unlocked = []
     if unlock(settings, "frostmourne_taken"):
         unlocked.append("frostmourne_taken")
+    return unlocked
+    
+def track_sans_seen(settings):
+    """Отслеживает, что игрок увидел Санса."""
+    unlocked = []
+    if unlock(settings, "sans_seen"):
+        unlocked.append("sans_seen")
+    return unlocked
+
+
+def track_gaster_seen(settings):
+    """Отслеживает, что игрок увидел Гастера."""
+    unlocked = []
+    if unlock(settings, "gaster_seen"):
+        unlocked.append("gaster_seen")
     return unlocked

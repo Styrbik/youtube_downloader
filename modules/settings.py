@@ -40,6 +40,12 @@ DEFAULTS = {
     "debug_paths": False,
     "achievements": {},
     "used_themes": [],
+    "download_counts": {"total": 0, "audio": 0, "video": 0},
+    "gaster_chance": 5,
+    "player_folder_audio": "",
+    "player_folder_video": "",
+    "player_scan_subfolders": True,
+    "random_theme_on_start": False,
 }
 
 

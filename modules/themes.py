@@ -645,22 +645,28 @@ THEMES = {
     # ============================================================
     #                    ПО ИГРАМ (game)
     # ============================================================
-    "minecraft": {
-        "name": "⛏️ Minecraft",
-        "category": "game",
-        "BG": "#1a2010",
-        "BG_CARD": "#2a3018",
-        "BG_INPUT": "#3a4020",
-        "FG": "#e0e8c0",
-        "FG_DIM": "#8a9a60",
-        "ACCENT": "#7cb342",
-        "ACCENT_HOVER": "#9ccc65",
-        "ACCENT_PRESS": "#558b2f",
-        "BORDER": "#3a4a20",
-        "BORDER_HOVER": "#7cb342",
-        "DISABLED": "#2a3018",
-        "DISABLED_FG": "#5a6a35",
+"minecraft": {
+    "name": "⛏️ Minecraft",
+    "category": "game",
+    "BG": "#1a2010",
+    "BG_CARD": "#2a3018",
+    "BG_INPUT": "#3a4020",
+    "FG": "#e0e8c0",
+    "FG_DIM": "#8a9a60",
+    "ACCENT": "#7cb342",
+    "ACCENT_HOVER": "#9ccc65",
+    "ACCENT_PRESS": "#558b2f",
+    "BORDER": "#3a4a20",
+    "BORDER_HOVER": "#7cb342",
+    "DISABLED": "#2a3018",
+    "DISABLED_FG": "#5a6a35",
+    # стилизация
+    "font": "minecraft.ttf",
+    "cursor": "minecraft.cursor",
+    "sounds": {
+        "click": "minecraft_click.mp3",
     },
+},
     "doom": {
         "name": "😈 Doom",
         "category": "game",
@@ -741,22 +747,32 @@ THEMES = {
         "DISABLED": "#2a0505",
         "DISABLED_FG": "#666666",
     },
-    "undertale": {
-        "name": "❤️ Undertale",
-        "category": "game",
-        "BG": "#0a0a0a",
-        "BG_CARD": "#1a1a1a",
-        "BG_INPUT": "#2a2a2a",
-        "FG": "#ffffff",
-        "FG_DIM": "#888888",
-        "ACCENT": "#ff3366",
-        "ACCENT_HOVER": "#ff6688",
-        "ACCENT_PRESS": "#cc0044",
-        "BORDER": "#3a3a3a",
-        "BORDER_HOVER": "#ff3366",
-        "DISABLED": "#1a1a1a",
-        "DISABLED_FG": "#555555",
+"undertale": {
+    "name": "❤️ Undertale",
+    "category": "game",
+    "BG": "#000000",
+    "BG_CARD": "#0a0a0a",
+    "BG_INPUT": "#1a1a1a",
+    "FG": "#ffffff",
+    "FG_DIM": "#888888",
+    "ACCENT": "#ff0000",
+    "ACCENT_HOVER": "#ff3366",
+    "ACCENT_PRESS": "#cc0000",
+    "BORDER": "#ffffff",
+    "BORDER_HOVER": "#ff0000",
+    "DISABLED": "#1a1a1a",
+    "DISABLED_FG": "#555555",
+    # стилизация
+    "font": "undertale.ttf",
+    "cursor": "under_cursor.png",
+    "button_radius": 0,
+    "button_border": 2,
+    "sounds": {
+        "click": "under_select.wav",
+        "done": "under_done.wav",
+        "error": "under_error.wav",
     },
+},
     "hollow_knight": {
         "name": "🦋 Hollow Knight",
         "category": "game",
@@ -1070,7 +1086,45 @@ CATEGORIES = {
     "vibe":    "🎨 Вайб",
 }
 
+def get_theme_font(theme_name):
+    """Возвращает путь к шрифту темы, если есть."""
+    theme = get_theme(theme_name)
+    font = theme.get("font")
+    if font:
+        import os
+        from config import BASE_DIR
+        path = os.path.join(BASE_DIR, "assets", "fonts", font)
+        if os.path.exists(path):
+            return path
+    return None
 
+
+def get_theme_cursor(theme_name):
+    """Возвращает путь к курсору темы, если есть."""
+    theme = get_theme(theme_name)
+    cursor = theme.get("cursor")
+    if cursor:
+        import os
+        from config import BASE_DIR
+        path = os.path.join(BASE_DIR, "assets", "cursors", cursor)
+        if os.path.exists(path):
+            return path
+    return None
+
+
+def get_theme_sound(theme_name, sound_key):
+    """Возвращает путь к звуку темы по ключу."""
+    theme = get_theme(theme_name)
+    sounds = theme.get("sounds", {})
+    filename = sounds.get(sound_key)
+    if filename:
+        import os
+        from config import BASE_DIR
+        path = os.path.join(BASE_DIR, "assets", "sounds", filename)
+        if os.path.exists(path):
+            return path
+    return None
+    
 def themes_by_category(category):
     """Возвращает список (key, theme) в указанной категории."""
     result = []

@@ -154,3 +154,28 @@ def play_admin_mp3(filename):
     except Exception as e:
         print(f"⚠️ Ошибка воспроизведения: {e}")
         return False
+        
+def play_theme_sound(theme_name, sound_key):
+    """..."""
+    from modules.themes import get_theme_sound
+    import os
+
+    path = get_theme_sound(theme_name, sound_key)
+    if not path or not os.path.exists(path):
+        return False
+
+    try:
+        if path.lower().endswith(".wav"):
+            _play(path, async_=True)   # ← НЕ блокирует!
+            return True
+        elif path.lower().endswith(".mp3"):
+            ...
+            import pygame
+            if not pygame.mixer.get_init():
+                pygame.mixer.init()
+            pygame.mixer.music.load(path)
+            pygame.mixer.music.play()
+            return True
+    except Exception as e:
+        print(f"⚠️ Не удалось сыграть {path}: {e}")
+    return False

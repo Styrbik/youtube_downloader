@@ -338,3 +338,40 @@ def download_playlist(url, output_dir, mode='audio', codec='mp3',
         ydl.download([url])
 
     return playlist_dir, playlist_title
+    
+def search_youtube(query, max_results=15):
+    """
+    Ищет видео на YouTube.
+    Возвращает список: [{'id', 'title', 'url', 'thumbnail', 'duration', 'uploader'}]
+    """
+    opts = {
+        'quiet': True,
+        'no_warnings': True,
+        'extract_flat': True,      # ← быстро, только метаданные
+        'force_generic_extractor': False,
+    }
+    opts.update(_get_cookie_opts())
+
+    search_query = f"ytsearch{max_results}:{query}"
+
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(search_query, download=False)
+
+        results = []
+        entries = info.get('entries', [])
+        for entry in entries:
+            if not entry:
+                continue
+            results.append({
+                'id': entry.get('id', ''),
+                'title': entry.get('title', 'Без названия'),
+                'url': entry.get('url') or f"https://youtube.com/watch?v={entry.get('id')}",
+                'thumbnail': entry.get('thumbnail') or entry.get('thumbnails', [{}])[0].get('url', ''),
+                'duration': entry.get('duration') or 0,
+                'uploader': entry.get('uploader') or entry.get('channel') or '',
+            })
+        return results
+    except Exception as e:
+        print(f"⚠️ Ошибка поиска: {e}")
+        return []

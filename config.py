@@ -29,7 +29,7 @@ CHANGELOG_PATH = os.path.join(BASE_DIR, 'CHANGELOG.md')
 ICONS_DIR = os.path.join(BASE_DIR, 'icons')
 ICON_PATH = os.path.join(BASE_DIR, 'icon.ico')  # активная
 
-def get_default_geometry(width=780, height=920, offset_y=60):
+def get_default_geometry(width=1200, height=800, offset_y=60):
     """Возвращает геометрию по центру экрана, чуть ниже центра."""
     import tkinter as tk
     root = tk.Tk()
@@ -43,7 +43,7 @@ def get_default_geometry(width=780, height=920, offset_y=60):
         y = 0
     return f"{width}x{height}+{x}+{y}"
     
-def get_centered_geometry(width=780, height=920, offset_y=0):
+def get_centered_geometry(width=1200, height=800, offset_y=0):
     """
     Возвращает геометрию по центру экрана.
     offset_y — сдвиг вниз от центра (если хочется чуть ниже).
@@ -94,8 +94,8 @@ def get_active_icon_path():
     return ICON_PATH
     
     # Версия приложения — единый источник правды
-APP_VERSION = "0.5.1"
-APP_BUILD_NAME = "Themes & Fixes"
+APP_VERSION = "0.6.0"
+APP_BUILD_NAME = "YouTube Downloader - Mine and Tale Update"
 APP_AUTHOR = "Styrbik"
 APP_DESCRIPTION = "YouTube Downloader"
 APP_COPYRIGHT = "© 2026 Styrbik Corp."

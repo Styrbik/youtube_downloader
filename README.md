@@ -4,7 +4,7 @@
 
 **Only Tube, but fucking good**
 
-[![Version](https://img.shields.io/badge/version-0.5.0-red)](https://github.com/Styrbik/youtube_downloader)
+[![Version](https://img.shields.io/badge/version-0.6.0-red)](https://github.com/Styrbik/youtube_downloader)
 [![Python](https://img.shields.io/badge/python-3.12+-blue)](https://www.python.org/)
 [![Website](https://img.shields.io/badge/website-online-brightgreen)](https://styrbik.github.io/youtube_downloader/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
