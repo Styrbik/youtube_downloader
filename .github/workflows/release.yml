@@ -13,6 +13,9 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      # ============================================================
+      #                    CHECKOUT
+      # ============================================================
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -25,15 +28,37 @@ jobs:
         id: info
         shell: bash
         run: |
-          # Версия из тега: refs/tags/v0.8.0 → 0.8.0
           VERSION="${GITHUB_REF#refs/tags/v}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "📦 Version: $VERSION"
 
-          # Название из коммита, к которому привязан тег
           BUILD_NAME=$(git log -1 --pretty=%s)
           echo "build_name=$BUILD_NAME" >> $GITHUB_OUTPUT
           echo "📦 Build name: $BUILD_NAME"
+
+      # ============================================================
+      #                    СКАЧИВАЕМ FFMPEG
+      # ============================================================
+      - name: Download ffmpeg
+        shell: pwsh
+        run: |
+          Write-Host "📥 Скачиваю ffmpeg..."
+          Invoke-WebRequest -Uri "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -OutFile "ffmpeg.zip"
+
+          Write-Host "📦 Распаковываю..."
+          Expand-Archive -Path "ffmpeg.zip" -DestinationPath "ffmpeg_temp"
+
+          Write-Host "🔍 Ищу ffmpeg.exe..."
+          $ffmpeg = Get-ChildItem -Path "ffmpeg_temp" -Recurse -Filter "ffmpeg.exe" | Select-Object -First 1
+          if (-not $ffmpeg) {
+            Write-Error "❌ ffmpeg.exe не найден в архиве"
+            exit 1
+          }
+
+          Copy-Item $ffmpeg.FullName -Destination "ffmpeg.exe"
+
+          Write-Host "✅ ffmpeg.exe готов:"
+          Get-Item "ffmpeg.exe" | Format-List Name, Length
 
       # ============================================================
       #                    ОБНОВЛЯЕМ CONFIG.PY
@@ -122,16 +147,6 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
-      - name: Download ffmpeg
-        shell: bash
-        run: |
-          echo "📥 Скачиваю ffmpeg..."
-          curl -L -o ffmpeg.zip https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
-          unzip -q ffmpeg.zip
-          find . -name "ffmpeg.exe" -type f -exec cp {} ./ffmpeg.exe \;
-          ls -la ffmpeg.exe
-          echo "✅ ffmpeg.exe готов"
-
       # ============================================================
       #                    СБОРКА EXE
       # ============================================================
@@ -160,10 +175,8 @@ jobs:
           git checkout main
           git pull origin main
 
-          # Восстанавливаем изменённые файлы из тега
           git checkout ${{ github.ref }} -- config.py installer.iss version_info.txt 2>/dev/null || echo "Файлы уже на месте"
 
-          # Если изменений нет — пропускаем
           if git diff --quiet; then
             echo "✓ Изменений нет"
           else
