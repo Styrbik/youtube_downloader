@@ -859,7 +859,7 @@
     footer .footer-links a:hover {
       color: var(--accent);
     }
-	
+
     /* ============ ГАЛЕРЕЯ ТЕМ ============ */
     .themes-grid {
       display: grid;
@@ -1126,6 +1126,144 @@
       }
     }
 
+    /* ============ О РАЗРАБОТЧИКЕ ============ */
+    .dev-card {
+      max-width: 600px;
+      margin: 0 auto;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 40px 32px;
+      text-align: center;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .dev-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--gradient);
+    }
+
+    .dev-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(230, 33, 23, 0.25);
+    }
+
+    .dev-avatar {
+      width: 80px;
+      height: 80px;
+      background: var(--bg);
+      border: 2px solid var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      margin: 0 auto 20px;
+      box-shadow: 0 0 24px rgba(230, 33, 23, 0.4);
+    }
+
+    .dev-name {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--fg);
+      margin-bottom: 6px;
+      letter-spacing: -0.02em;
+    }
+
+    .dev-role {
+      color: var(--accent);
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+
+    .dev-bio {
+      color: var(--fg-dim);
+      font-size: 15px;
+      line-height: 1.7;
+      margin-bottom: 24px;
+    }
+
+    .dev-links {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    /* ============ ДОСТИЖЕНИЯ ============ */
+    .ach-category {
+      margin-bottom: 40px;
+    }
+
+    .ach-category:last-child {
+      margin-bottom: 0;
+    }
+
+    .ach-cat-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--fg);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ach-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+    }
+
+    .ach-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 16px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+    }
+
+    .ach-card:hover {
+      border-color: var(--accent);
+      background: var(--bg-card-hover);
+      transform: translateY(-3px);
+    }
+
+    .ach-card.secret {
+      border-style: dashed;
+      opacity: 0.6;
+    }
+
+    .ach-card.secret:hover {
+      opacity: 1;
+    }
+
+    .ach-icon {
+      font-size: 26px;
+      margin-bottom: 8px;
+    }
+
+    .ach-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--fg);
+      margin-bottom: 4px;
+    }
+
+    .ach-desc {
+      font-size: 12px;
+      color: var(--fg-dim);
+      line-height: 1.5;
+    }
+
     /* ============ АДАПТИВНОСТЬ ============ */
     @media (max-width: 768px) {
       .nav-links a:not(.btn-nav) {
@@ -1176,6 +1314,7 @@
       .carousel-dots {
         gap: 8px;
       }
+
       .themes-grid {
         grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
         gap: 10px;
@@ -1193,6 +1332,41 @@
       .lightbox-caption {
         font-size: 12px;
         padding: 6px 14px;
+      }
+
+      .dev-card {
+        padding: 28px 20px;
+      }
+
+      .dev-avatar {
+        width: 64px;
+        height: 64px;
+        font-size: 28px;
+      }
+
+      .dev-name {
+        font-size: 20px;
+      }
+
+      .ach-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 10px;
+      }
+
+      .ach-card {
+        padding: 14px 12px;
+      }
+
+      .ach-icon {
+        font-size: 22px;
+      }
+
+      .ach-name {
+        font-size: 13px;
+      }
+
+      .ach-desc {
+        font-size: 11px;
       }
     }
   </style>
@@ -1212,7 +1386,10 @@
         <a href="#versions">Версии</a>
         <a href="#features">Возможности</a>
         <a href="#screenshots">Скриншоты</a>
-        <a href="#changelog">Что нового</a>
+        <a href="#themes">Темы</a>
+        <a href="#holidays">Праздники</a>
+        <a href="#achievements">Достижения</a>
+        <a href="#about">О разработчике</a>
         <a href="#faq">FAQ</a>
         <a href="https://github.com/Styrbik/youtube_downloader" class="btn-nav">GitHub</a>
       </div>
@@ -1338,7 +1515,7 @@
         <div class="feature animate">
           <span class="feature-icon">&#128123;</span>
           <h4>Секретные пасхалки</h4>
-          <p>Скрытые фичи </code> в поле URL.</p>
+          <p>Скрытые фичи, которые ты найдёшь сам. Попробуй ввести что-нибудь необычное в поле ссылки — вдруг что-то произойдёт.</p>
         </div>
 
         <div class="feature animate">
@@ -1383,8 +1560,8 @@
           <p>Полупрозрачные карточки как в iOS 26. Работает поверх любой темы, регулируется прозрачность и размытие.</p>
         </div>
       </div>
-
-
+    </div>
+  </section>
 
   <!-- СКРИНШОТЫ (КАРУСЕЛЬ) -->
   <section class="section" id="screenshots">
@@ -1421,7 +1598,7 @@
       </div>
     </div>
   </section>
-  
+
   <!-- ГАЛЕРЕЯ ТЕМ -->
   <section class="section" id="themes">
     <div class="container">
@@ -1434,12 +1611,6 @@
       <div class="themes-grid animate" id="themes-grid">
         <!-- Сюда JS подгрузит скрины -->
         <div class="themes-loading">⏳ Загружаю темы...</div>
-      </div>
-
-      <div class="themes-more-wrap animate" id="themes-more-wrap" style="display:none;">
-        <button class="btn-more" id="themes-show-all">
-          ✨ Посмотреть все темы
-        </button>
       </div>
 
       <div class="themes-more-wrap animate" id="themes-more-wrap" style="display:none;">
@@ -1489,6 +1660,249 @@
       </div>
     </div>
   </section>
+
+  <!-- О РАЗРАБОТЧИКЕ -->
+  <section class="section" id="about">
+    <div class="container">
+      <h2 class="section-title animate">👨‍💻 О разработчике</h2>
+      <p class="section-subtitle animate">Один человек. Один проект. Ноль бюджета.</p>
+
+      <div class="dev-card animate">
+        <div class="dev-avatar">🎬</div>
+        <h3 class="dev-name">Styrbik</h3>
+        <p class="dev-role">Человек знающий своё дело (нет)</p>
+        <p class="dev-bio">
+          Сделал эту качалку, потому что онлайн-версии бесили рекламой и лимитами.
+          Начал с командной строки — теперь это приложение с 64 темами, встроенным плеером
+          и пасхалками.
+        </p>
+        <div class="dev-links">
+          <a href="https://github.com/Styrbik" class="btn btn-secondary">
+            <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16">
+              <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/>
+            </svg>
+            GitHub
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ДОСТИЖЕНИЯ -->
+  <section class="section" id="achievements">
+    <div class="container">
+      <h2 class="section-title animate">🏆 Достижения</h2>
+      <p class="section-subtitle animate">
+        24 достижения в 7 категориях. Скачивай, меняй темы, лови пасхалки — открывай всё.
+      </p>
+
+      <div class="ach-category animate">
+        <h3 class="ach-cat-title">📥 Скачивание</h3>
+        <div class="ach-grid">
+          <div class="ach-card">
+            <div class="ach-icon">🥉</div>
+            <div class="ach-name">Первый шаг</div>
+            <div class="ach-desc">Скачай первое видео</div>
+          </div>
+          <div class="ach-card">
+            <div class="ach-icon">🥈</div>
+            <div class="ach-name">Коллекционер</div>
+            <div class="ach-desc">Скачай 10 видео</div>
+          </div>
+          <div class="ach-card">
+            <div class="ach-icon">🥇</div>
+            <div class="ach-name">Мастер</div>
+            <div class="ach-desc">Скачай 50 видео</div>
+          </div>
+          <div class="ach-card">
+            <div class="ach-icon">💎</div>
+            <div class="ach-name">Легенда</div>
+            <div class="ach-desc">Скачай 100 видео</div>
+          </div>
+          <div class="ach-card">
+            <div class="ach-icon">👑</div>
+            <div class="ach-name">Бог</div>
+            <div class="ach-desc">Скачай 500 видео</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ach-category animate">
+        <h3 class="ach-cat-title">🎵 Аудио</h3>
+        <div class="ach-grid">
+          <div class="ach-card">
+            <div class="ach-icon">🎵</div>
+            <div class="ach-name">Меломан</div>
+            <div class="ach-desc">Скачай 10 MP3</div>
+          </div>
+          <div class="ach-card">
+            <div class="ach-icon">🎧</div>
+            <div class="ach-name">Аудиофил</div>
+            <div class="ach-desc">Скачай 50 MP3</div>
+          </div>
+          <div class="ach-card">
+            <div class="ach-icon">🎤</div>
+            <div class="ach-name">320 kbps</div>
+            <div class="ach-desc">Скачай в 320 kbps</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ach-category animate">
+        <h3 class="ach-cat-title">🎬 Видео</h3>
+        <div class="ach-grid">
+          <div class="ach-card">
+            <div class="ach-icon">📺</div>
+            <div class="ach-name">Киноман</div>
+            <div class="ach-desc">Скачай 10 видео</div>
+          </div>
+          <div class="ach-card">
+            <div class="ach-icon">🎬</div>
+            <div class="ach-name">4K</div>
+            <div class="ach-desc">Скачай 4K видео</div>
+          </div>
+          <div class="ach-card">
+            <div class="ach-icon">🎥</div>
+            <div class="ach-name">1080p</div>
+            <div class="ach-desc">Скачай 1080p видео</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ach-category animate">
+        <h3 class="ach-cat-title">🎨 Темы</h3>
+        <div class="ach-grid">
+          <div class="ach-card">
+            <div class="ach-icon">🎨</div>
+            <div class="ach-name">Художник</div>
+            <div class="ach-desc">Используй 5 разных тем</div>
+          </div>
+          <div class="ach-card">
+            <div class="ach-icon">🌈</div>
+            <div class="ach-name">Радуга</div>
+            <div class="ach-desc">Используй 20 разных тем</div>
+          </div>
+          <div class="ach-card">
+            <div class="ach-icon">❄️</div>
+            <div class="ach-name">Король-лич</div>
+            <div class="ach-desc">Используй тему Frostmourne</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ach-category animate">
+        <h3 class="ach-cat-title">🎄 Праздники</h3>
+        <div class="ach-grid">
+          <div class="ach-card">
+            <div class="ach-icon">🎃</div>
+            <div class="ach-name">Хэллоуин</div>
+            <div class="ach-desc">Скачай в Хэллоуин</div>
+          </div>
+          <div class="ach-card">
+            <div class="ach-icon">🎄</div>
+            <div class="ach-name">Новый год</div>
+            <div class="ach-desc">Скачай в Новый год</div>
+          </div>
+          <div class="ach-card">
+            <div class="ach-icon">💀</div>
+            <div class="ach-name">Doomsday</div>
+            <div class="ach-desc">Скачай в Doomsday</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ach-category animate">
+        <h3 class="ach-cat-title">⏰ Время</h3>
+        <div class="ach-grid">
+          <div class="ach-card">
+            <div class="ach-icon">🌙</div>
+            <div class="ach-name">Ночной</div>
+            <div class="ach-desc">Скачай после 23:00</div>
+          </div>
+          <div class="ach-card">
+            <div class="ach-icon">☀️</div>
+            <div class="ach-name">Ранняя птичка</div>
+            <div class="ach-desc">Скачай до 6:00</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ach-category animate">
+        <h3 class="ach-cat-title">🎮 Секретные</h3>
+        <div class="ach-grid">
+          <div class="ach-card secret">
+            <div class="ach-icon">❓</div>
+            <div class="ach-name">???</div>
+            <div class="ach-desc">Найди сам</div>
+          </div>
+          <div class="ach-card secret">
+            <div class="ach-icon">❓</div>
+            <div class="ach-name">???</div>
+            <div class="ach-desc">Найди сам</div>
+          </div>
+          <div class="ach-card secret">
+            <div class="ach-icon">❓</div>
+            <div class="ach-name">???</div>
+            <div class="ach-desc">Найди сам</div>
+          </div>
+          <div class="ach-card secret">
+            <div class="ach-icon">❓</div>
+            <div class="ach-name">???</div>
+            <div class="ach-desc">Найди сам</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- УСТАНОВКА -->
+  <section class="section" id="install">
+    <div class="container">
+      <h2 class="section-title animate">Как установить</h2>
+      <p class="section-subtitle animate">Три простых шага — и всё готово</p>
+
+      <div class="steps">
+        <div class="step animate">
+          <div class="step-num">1</div>
+          <h4>Скачай</h4>
+          <p>Последний релиз с GitHub</p>
+        </div>
+        <div class="step animate">
+          <div class="step-num">2</div>
+          <h4>Распакуй</h4>
+          <p>В любую папку на компьютере</p>
+        </div>
+        <div class="step animate">
+          <div class="step-num">3</div>
+          <h4>Запусти</h4>
+          <p>YouTubeDownloader.exe — и выбирай версию</p>
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-top: 40px;" class="animate">
+        <a href="https://github.com/Styrbik/youtube_downloader/releases/latest" class="btn btn-primary">
+          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 12l-5-5h3V1h4v6h3l-5 5zm-6 2h12v2H2v-2z"/></svg>
+          Скачать последнюю версию
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ФУТЕР -->
+  <footer>
+    <div class="container">
+      <p style="font-size: 16px; margin-bottom: 8px;">
+        Сделано с <span class="heart">&#10084;</span> и &#127875;
+      </p>
+      <p>&copy; 2026 Styrbik — MIT License</p>
+      <div class="footer-links">
+        <a href="https://github.com/Styrbik/youtube_downloader">GitHub</a>
+        <a href="https://github.com/Styrbik/youtube_downloader/releases">Releases</a>
+        <a href="https://github.com/Styrbik/youtube_downloader/blob/main/CHANGELOG.md">Changelog</a>
+        <a href="https://github.com/Styrbik/youtube_downloader/issues">Issues</a>
+      </div>
+    </div>
+  </footer>
 
   <!-- МОДАЛЬНОЕ ОКНО ДЛЯ УВЕЛИЧЕНИЯ СКРИНА -->
   <div class="lightbox" id="lightbox">
@@ -1588,55 +2002,6 @@
       </div>
     </div>
   </section>
-
-  <!-- УСТАНОВКА -->
-  <section class="section" id="install">
-    <div class="container">
-      <h2 class="section-title animate">Как установить</h2>
-      <p class="section-subtitle animate">Три простых шага — и всё готово</p>
-
-      <div class="steps">
-        <div class="step animate">
-          <div class="step-num">1</div>
-          <h4>Скачай</h4>
-          <p>Последний релиз с GitHub</p>
-        </div>
-        <div class="step animate">
-          <div class="step-num">2</div>
-          <h4>Распакуй</h4>
-          <p>В любую папку на компьютере</p>
-        </div>
-        <div class="step animate">
-          <div class="step-num">3</div>
-          <h4>Запусти</h4>
-          <p>YouTubeDownloader.exe — и выбирай версию</p>
-        </div>
-      </div>
-
-      <div style="text-align: center; margin-top: 40px;" class="animate">
-        <a href="https://github.com/Styrbik/youtube_downloader/releases/latest" class="btn btn-primary">
-          <svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 12l-5-5h3V1h4v6h3l-5 5zm-6 2h12v2H2v-2z"/></svg>
-          Скачать последнюю версию
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <!-- ФУТЕР -->
-  <footer>
-    <div class="container">
-      <p style="font-size: 16px; margin-bottom: 8px;">
-        Сделано с <span class="heart">&#10084;</span> и &#127875;
-      </p>
-      <p>&copy; 2026 Styrbik — MIT License</p>
-      <div class="footer-links">
-        <a href="https://github.com/Styrbik/youtube_downloader">GitHub</a>
-        <a href="https://github.com/Styrbik/youtube_downloader/releases">Releases</a>
-        <a href="https://github.com/Styrbik/youtube_downloader/blob/main/CHANGELOG.md">Changelog</a>
-        <a href="https://github.com/Styrbik/youtube_downloader/issues">Issues</a>
-      </div>
-    </div>
-  </footer>
 
   <script>
     // ============================================================
@@ -1874,6 +2239,7 @@
 
     goToSlide(0);
     startAutoplay();
+
     // ============================================================
     // 6. ГАЛЕРЕЯ ТЕМ (загружается из GitHub API)
     // ============================================================
