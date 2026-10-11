@@ -94,8 +94,8 @@ def get_active_icon_path():
     return ICON_PATH
     
     # Версия приложения — единый источник правды
-APP_VERSION = "0.6.0"
-APP_BUILD_NAME = "YouTube Downloader - Mine and Tale Update"
+APP_VERSION = "0.7.0"
+APP_BUILD_NAME = "Play and Install"
 APP_AUTHOR = "Styrbik"
 APP_DESCRIPTION = "YouTube Downloader"
 APP_COPYRIGHT = "© 2026 Styrbik Corp."

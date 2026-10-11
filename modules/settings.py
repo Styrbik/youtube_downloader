@@ -46,6 +46,9 @@ DEFAULTS = {
     "player_folder_video": "",
     "player_scan_subfolders": True,
     "random_theme_on_start": False,
+    "download_subtitles": False,
+    "subtitles_langs": ["ru"],
+    "subtitles_auto": True,
 }
 
 
@@ -131,13 +134,14 @@ def get_output_dir(settings):
     return DOWNLOADS_DIR
 
 
-def add_to_history(settings, file_path, url="", title=""):
+def add_to_history(settings, file_path, url="", title="", thumb_path=None):
     from datetime import datetime
     entry = {
         "file": file_path,
         "url": url,
         "title": title,
         "date": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "thumb": thumb_path,
     }
     history = settings.get("history", [])
     history.insert(0, entry)

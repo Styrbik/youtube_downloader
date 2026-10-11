@@ -51,19 +51,15 @@ def _set_app_user_model_id(app_id: str):
 
 def _unpack_assets():
     """
-    Копирует ассеты рядом с exe при первом запуске.
-    Работает как для onedir, так и для onefile.
+    Копирует ассеты рядом с exe.
+    Проверяет КАЖДЫЙ файл — если не хватает, докопирует.
     """
     assets = [
-        # ---- Одиночные файлы ----
         ('icon.ico', 'icon.ico'),
         ('cover.png', 'cover.png'),
         ('CHANGELOG.md', 'CHANGELOG.md'),
-
-        # ---- Папки ----
         ('icons', 'icons'),
-        ('assets', 'assets'),              # ← НОВОЕ (шрифты, курсоры, звуки, гифки)
-        ('admin_assets', 'admin_assets'),  # ← НОВОЕ (звуки Артаса, тестовые файлы)
+        ('assets', 'assets'),
     ]
 
     for src_name, dst_name in assets:
@@ -71,26 +67,50 @@ def _unpack_assets():
         dst = os.path.join(BASE_DIR, dst_name)
 
         if not os.path.exists(src):
-            # Не падаем — просто пропускаем
             continue
 
         if os.path.isdir(src):
-            # Папка
-            if not os.path.isdir(dst):
-                try:
-                    shutil.copytree(src, dst)
-                    print(f"📁 Распакована папка: {dst_name}")
-                except Exception as e:
-                    print(f"⚠️ Не удалось распаковать {dst_name}: {e}")
-            # Если уже есть — не трогаем (не перезаписываем)
+            _copy_tree_merge(src, dst)
         else:
-            # Файл
             if not os.path.exists(dst):
                 try:
                     shutil.copy2(src, dst)
                     print(f"📄 Распакован файл: {dst_name}")
                 except Exception as e:
                     print(f"⚠️ Не удалось распаковать {dst_name}: {e}")
+
+
+def _copy_tree_merge(src, dst):
+    """
+    Рекурсивно копирует src → dst.
+    Досоздаёт недостающие файлы, не трогает существующие.
+    """
+    os.makedirs(dst, exist_ok=True)
+
+    for item in os.listdir(src):
+        src_item = os.path.join(src, item)
+        dst_item = os.path.join(dst, item)
+
+        if os.path.isdir(src_item):
+            _copy_tree_merge(src_item, dst_item)
+        else:
+            # Копируем только если файла нет или размер не совпадает
+            need_copy = False
+            if not os.path.exists(dst_item):
+                need_copy = True
+            else:
+                try:
+                    if os.path.getsize(src_item) != os.path.getsize(dst_item):
+                        need_copy = True
+                except Exception:
+                    need_copy = True
+
+            if need_copy:
+                try:
+                    shutil.copy2(src_item, dst_item)
+                    print(f"📄 Докопирован: {item}")
+                except Exception as e:
+                    print(f"⚠️ Не удалось скопировать {item}: {e}")
 
 
 def _load_ytdlp_cache():

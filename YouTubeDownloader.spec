@@ -18,12 +18,10 @@ datas = [
     ('ffmpeg.exe', '.'),
     ('version_info.txt', '.'),
 
-    # ---- АССЕТЫ (шрифты, курсоры, звуки, гифки) ----
+    # ---- Ассеты ----
     ('assets', 'assets'),
-
 ]
 
-# ---- Модули (на случай, если есть не .py файлы) ----
 if os.path.isdir('modules'):
     datas.append(('modules', 'modules'))
 
@@ -32,7 +30,6 @@ if os.path.isdir('modules'):
 #                    HIDDEN IMPORTS
 # ============================================================
 hiddenimports = [
-    # ---- Внутренние модули ----
     'config',
     'modules',
     'modules.bootstrap',
@@ -66,8 +63,8 @@ hiddenimports = [
     'modules.gui_dark',
     'modules.launcher_qt',
     'modules.launcher_dark',
+    'modules.thumbs',
 
-    # ---- Python встроенные ----
     '_overlapped',
     'asyncio',
     'asyncio.windows_events',
@@ -75,7 +72,6 @@ hiddenimports = [
     'ctypes',
     'ctypes.wintypes',
 
-    # ---- PyQt6 ----
     'PyQt6',
     'PyQt6.QtCore',
     'PyQt6.QtWidgets',
@@ -84,7 +80,6 @@ hiddenimports = [
     'PyQt6.QtMultimediaWidgets',
     'PyQt6.sip',
 
-    # ---- Сторонние ----
     'tkinter',
     'yt_dlp',
     'mutagen',
@@ -104,7 +99,7 @@ hiddenimports += collect_submodules('yt_dlp')
 
 
 # ============================================================
-#                    ANALYSE
+#                    ANALYSIS
 # ============================================================
 a = Analysis(
     ['downloader_launcher.py'],
@@ -122,19 +117,20 @@ a = Analysis(
 
 pyz = PYZ(a.pure)
 
+
+# ============================================================
+#                    EXE (onedir)
+# ============================================================
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
+    exclude_binaries=True,       # ← ВАЖНО для onedir
     name='YouTubeDownloader',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -143,4 +139,18 @@ exe = EXE(
     entitlements_file=None,
     version='version_info.txt',
     icon=['icon.ico'],
+)
+
+
+# ============================================================
+#                    COLLECT (папка)
+# ============================================================
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=True,
+    upx_exclude=[],
+    name='YouTubeDownloader',
 )

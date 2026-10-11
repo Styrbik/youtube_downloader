@@ -10,6 +10,7 @@ import re
 import threading
 import webbrowser
 from datetime import datetime
+from PyQt6.QtGui import QIcon
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -28,6 +29,7 @@ from PyQt6.QtCore import (
     QParallelAnimationGroup, QSequentialAnimationGroup, pyqtSignal, QRect,
     QObject, QEvent,
 )
+
 from PyQt6.QtGui import (
     QIcon, QPixmap, QColor, QPainter, QAction, QFont,
     QLinearGradient, QBrush, QPen, QFontDatabase, QCursor,
@@ -949,7 +951,11 @@ class DownloaderApp(QMainWindow):
             threading.Thread(target=self._check_ytdlp_update, daemon=True).start()
 
         QTimer.singleShot(100, self._cascade_animate)
-        # QTimer.singleShot(800, self._check_cookies_on_start)
+
+        # ==== SCREENSHOT MODE ====
+        if "--screenshot-mode" in sys.argv:
+            self._setup_screenshot_mode()
+            return
 
         # таймер для обновления glow от курсора
         self.setMouseTracking(True)
@@ -1701,6 +1707,22 @@ class DownloaderApp(QMainWindow):
     def _on_fetch(self):
         # ---------- ПАСХАЛКИ ПО URL ----------
         url = self.url_input.text().strip().lower()
+        # Русская раскладка ?sans → ?ыфты
+        if url in ("?ыфты", "ыфты", "?ыф", "фищгежыфты"):
+            print("👁️ SANS RUSSIAN LAYOUT CALL")
+            self.url_input.setText("")
+
+            try:
+                QtToast(
+                    self,
+                    "💀 Санс: бро, ты на русской раскладке.\n"
+                    "я конечно скелет, но не буду читать «ыфты».\n"
+                    "просто попробуй ?sans",
+                    duration=5000,
+                )
+            except Exception as e:
+                print(f"⚠️ Тост: {e}")
+            return
         
         # ?gaster или просто gaster — принудительный Гастер
         if url in ("?gaster", "gaster", "?ga", "about:gaster"):
@@ -1980,15 +2002,29 @@ class DownloaderApp(QMainWindow):
                 mp3_path = final_path or embed.find_latest_mp3(output_dir)
                 if mp3_path and os.path.exists(mp3_path):
                     thumb = embed.find_thumbnail(mp3_path)
+                    print(f"🔍 thumb src (audio): {thumb}")
+
+                    # --- сохраняем превью для истории ДО вшивания ---
+                    if thumb:
+                        try:
+                            from modules import thumbs
+                            saved = thumbs.save_thumb(thumb, mp3_path)
+                            print(f"🖼 Превью для аудио: {saved}")
+                        except Exception as e:
+                            print(f"⚠️ Превью для аудио: {e}")
+
                     cover = thumb if thumb else (COVER_PATH if os.path.exists(COVER_PATH) else None)
                     if cover:
                         embed.embed_cover(mp3_path, cover)
+
                     if self.settings.get("embed_metadata", True) and self.meta:
                         embed.embed_metadata(mp3_path, self.meta)
+
                 try:
                     embed.cleanup_temp_files(output_dir)
                 except Exception:
                     pass
+
             else:
                 container = self._get_checked("_rb_container", "mp4")
                 am = self._get_checked("_rb_audio_mode", "best")
@@ -2011,6 +2047,22 @@ class DownloaderApp(QMainWindow):
                     rename_if_exists=self._rename_flag,
                 )
                 self._last_downloaded_file = final_path
+
+                # --- сохраняем превью для видео ---
+                if final_path and os.path.exists(final_path):
+                    try:
+                        from modules import thumbs
+
+                        thumb_src = embed.find_thumbnail(final_path)
+                        print(f"🔍 thumb src (video): {thumb_src}")
+
+                        if thumb_src:
+                            saved = thumbs.save_thumb(thumb_src, final_path)
+                            print(f"🖼 Превью для видео: {saved}")
+                        else:
+                            print("⚠️ Превью видео не найдено (.webp нет)")
+                    except Exception as e:
+                        print(f"⚠️ Превью для видео: {e}")
 
             core.PROGRESS_CALLBACK = None
             QTimer.singleShot(0, self._download_done)
@@ -2044,8 +2096,21 @@ class DownloaderApp(QMainWindow):
 
         latest_file = self._last_downloaded_file
         if latest_file and os.path.exists(latest_file):
-            settings.add_to_history(self.settings, latest_file,
-                                    url=saved_url, title=self.title_text)
+            # --- ищем сохранённое превью ---
+            thumb_path = None
+            try:
+                from modules import thumbs
+                thumb_path = thumbs.get_thumb(latest_file)
+                print(f"🔍 Превью из кэша: {thumb_path}")
+            except Exception as e:
+                print(f"⚠️ Поиск превью: {e}")
+
+            settings.add_to_history(
+                self.settings, latest_file,
+                url=saved_url,
+                title=self.title_text,
+                thumb_path=thumb_path,
+            )
         self._last_downloaded_file = None
         self.selected_format = None
 
@@ -2070,6 +2135,7 @@ class DownloaderApp(QMainWindow):
                 QtToast(self, f"{_lang['toast_saved']}:\n{output_dir}")
         except Exception as e:
             print(f"⚠️ Ошибка тоста: {e}")
+
         # Звук окончания загрузки — из темы
         try:
             from modules.sounds import play_theme_sound
@@ -2080,11 +2146,11 @@ class DownloaderApp(QMainWindow):
             actual = forced if forced else theme
 
             if not play_theme_sound(actual, "done"):
-                # Fallback — обычный звук
                 from modules.sounds import done
                 done()
         except Exception as e:
             print(f"⚠️ Звук окончания: {e}")
+
         # достижения: скачивание
         try:
             from modules import achievements as ach_mod
@@ -2708,15 +2774,178 @@ class DownloaderApp(QMainWindow):
                 ))
         except Exception as e:
             print(f"⚠️ Ошибка проверки обновлений: {e}")
+            
+    def _setup_screenshot_mode(self):
+        """Режим скриншота: ждёт, снимает, сохраняет, закрывает."""
+        out_path = None
+        delay = 4000  # по умолчанию 4 сек
+
+        for arg in sys.argv:
+            if arg.startswith("--screenshot-out="):
+                out_path = arg.split("=", 1)[1]
+            elif arg.startswith("--screenshot-delay="):
+                try:
+                    delay = int(arg.split("=", 1)[1])
+                except Exception:
+                    pass
+
+        if not out_path:
+            print("⚠️ --screenshot-mode без --screenshot-out=, выхожу")
+            QApplication.quit()
+            return
+
+        print(f"📸 Screenshot mode: {out_path} (delay={delay}ms)")
+
+        # Скрываем трей, чтобы не мешал
+        if self._tray_icon:
+            try:
+                self._tray_icon.hide()
+            except Exception:
+                pass
+
+        def _take_shot():
+            try:
+                # Убеждаемся, что окно на переднем плане
+                self.raise_()
+                self.activateWindow()
+                QApplication.processEvents()
+
+                # Снимаем всё окно
+                pixmap = self.grab()
+                if pixmap.isNull():
+                    print("⚠️ Скриншот пустой")
+                    QApplication.quit()
+                    return
+
+                # Создаём папку, если нет
+                out_dir = os.path.dirname(out_path)
+                if out_dir:
+                    os.makedirs(out_dir, exist_ok=True)
+
+                # Сохраняем
+                ok = pixmap.save(out_path, "PNG")
+                if ok:
+                    print(f"✅ Скриншот сохранён: {out_path}")
+                else:
+                    print(f"⚠️ Не удалось сохранить: {out_path}")
+            except Exception as e:
+                print(f"⚠️ Ошибка скриншота: {e}")
+            finally:
+                # Закрываем приложение
+                QApplication.quit()
+
+        QTimer.singleShot(delay, _take_shot)
 
     def _setup_shortcuts(self):
         from PyQt6.QtGui import QShortcut, QKeySequence
-        QShortcut(QKeySequence("Ctrl+V"), self, self._paste_from_clipboard)
-        QShortcut(QKeySequence("Return"), self, self._on_fetch)
-        QShortcut(QKeySequence("F5"), self, self._on_fetch)
-        QShortcut(QKeySequence("Escape"), self, self._on_close)
-        QShortcut(QKeySequence("Ctrl+H"), self, self._open_history)
-        QShortcut(QKeySequence("Ctrl+T"), self, self._change_theme)
+        from PyQt6.QtCore import Qt
+
+        # ==== Хоткеи, работающие в ЛЮБОЙ раскладке ====
+        # Используем физические клавиши через QKeyCombination
+
+        # Ctrl+V — вставить из буфера
+        QShortcut(
+            QKeySequence(Qt.Key.Key_V | Qt.KeyboardModifier.ControlModifier),
+            self,
+            self._paste_from_clipboard
+        )
+
+        # Ctrl+H — история
+        QShortcut(
+            QKeySequence(Qt.Key.Key_H | Qt.KeyboardModifier.ControlModifier),
+            self,
+            self._open_history
+        )
+
+        # Ctrl+T — смена темы
+        QShortcut(
+            QKeySequence(Qt.Key.Key_T | Qt.KeyboardModifier.ControlModifier),
+            self,
+            self._change_theme
+        )
+
+        # Ctrl+F — фокус на поле URL (бонус)
+        QShortcut(
+            QKeySequence(Qt.Key.Key_F | Qt.KeyboardModifier.ControlModifier),
+            self,
+            lambda: self.url_input.setFocus()
+        )
+
+        # ==== Функциональные клавиши — работают везде ====
+        # Enter — получить форматы
+        QShortcut(
+            QKeySequence(Qt.Key.Key_Return),
+            self,
+            self._on_fetch
+        )
+        QShortcut(
+            QKeySequence(Qt.Key.Key_Enter),  # NumPad Enter
+            self,
+            self._on_fetch
+        )
+
+        # F5 — обновить форматы
+        QShortcut(
+            QKeySequence(Qt.Key.Key_F5),
+            self,
+            self._on_fetch
+        )
+
+        # F12 — скриншот
+        QShortcut(
+            QKeySequence(Qt.Key.Key_F12),
+            self,
+            self._take_screenshot
+        )
+
+        # Esc — закрыть
+        QShortcut(
+            QKeySequence(Qt.Key.Key_Escape),
+            self,
+            self._on_close
+        )
+        
+    def _take_screenshot(self):
+        """F12 — сохранить скриншот приложения."""
+        from datetime import datetime
+        from config import BASE_DIR
+
+        # папка для скринов
+        shots_dir = os.path.join(BASE_DIR, "screenshots")
+        os.makedirs(shots_dir, exist_ok=True)
+
+        # имя файла: screenshot_2026-10-11_12-45-30.png
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        filename = f"screenshot_{timestamp}.png"
+        out_path = os.path.join(shots_dir, filename)
+
+        try:
+            # убеждаемся, что окно на переднем плане (не обязательно, но на всякий)
+            QApplication.processEvents()
+
+            # снимаем всё окно
+            pixmap = self.grab()
+            if pixmap.isNull():
+                QtToast(self, "⚠️ Не удалось сделать скриншот")
+                return
+
+            # сохраняем
+            ok = pixmap.save(out_path, "PNG")
+            if ok:
+                print(f"📸 Скриншот: {out_path}")
+                QtToast(self, f"📸 Скриншот сохранён:\n{filename}", duration=3000)
+
+                # звук клика (если включены звуки)
+                try:
+                    from modules.sounds import click
+                    click()
+                except Exception:
+                    pass
+            else:
+                QtToast(self, "⚠️ Не удалось сохранить скриншот")
+        except Exception as e:
+            print(f"⚠️ Ошибка скриншота: {e}")
+            QtToast(self, f"⚠️ Ошибка: {e}")
 
     def _on_close(self):
         try:
@@ -2795,6 +3024,37 @@ class SettingsDialog(QDialog):
         add_check("check_updates", "🔄 Проверять обновления")
         add_check("random_theme_on_start", "🎲 Случайная тема при запуске",
                   "Каждый раз новая тема при старте приложения")
+        # ==== Субтитры ====
+        sep = QLabel("")
+        sep.setFixedHeight(10)
+        inner_layout.addWidget(sep)
+
+        sub_title = QLabel("🎬 Субтитры")
+        sub_title.setStyleSheet(f"color: {FG}; font-size: 13px; font-weight: bold;")
+        inner_layout.addWidget(sub_title)
+
+        add_check("download_subtitles", "Скачивать субтитры",
+                  "Файлы .srt рядом с видео")
+
+        # Языки субтитров
+        lang_row = QHBoxLayout()
+        lang_lbl = QLabel("Языки:")
+        lang_lbl.setStyleSheet(f"color: {FG_DIM}; font-size: 11px;")
+        lang_lbl.setFixedWidth(100)
+        lang_row.addWidget(lang_lbl)
+
+        lang_input = QLineEdit()
+        lang_input.setText(", ".join(parent.settings.get("subtitles_langs", ["ru", "en"])))
+        lang_input.setPlaceholderText("ru, en, ja, ...")
+        lang_input.setToolTip("Коды языков через запятую")
+        lang_input.textChanged.connect(
+            lambda txt: self._save_subtitles_langs(txt)
+        )
+        lang_row.addWidget(lang_input, stretch=1)
+        inner_layout.addLayout(lang_row)
+
+        add_check("subtitles_auto", "Авто-субтитры",
+                  "Если обычных нет — брать сгенерированные YouTube")
 
         inner_layout.addStretch()
         
@@ -2881,6 +3141,12 @@ class SettingsDialog(QDialog):
             DEFAULTS = {}
         for key, cb in self.vars.items():
             cb.setChecked(DEFAULTS.get(key, True))
+
+    def _save_subtitles_langs(self, text):
+        """Сохраняет список языков субтитров."""
+        langs = [x.strip() for x in text.split(",") if x.strip()]
+        if langs:
+            self.parent_app.settings["subtitles_langs"] = langs
 
     def _save(self):
         for key, widget in self.vars.items():
@@ -3040,26 +3306,69 @@ class HistoryDialog(QDialog):
     def __init__(self, parent):
         super().__init__(parent)
         self.setWindowTitle("История")
-        self.setFixedSize(700, 500)
+        self.setFixedSize(760, 560)
         self.parent_app = parent
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(10)
 
         title = QLabel("📜 История скачанного")
         title.setStyleSheet(f"color: {FG}; font-size: 16px; font-weight: bold;")
         layout.addWidget(title)
 
+        # ==== QListWidget с иконками ====
         self.list = QListWidget()
+        self.list.setIconSize(QSize(80, 52))
+        self.list.setSpacing(4)
+        self.list.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {BG_INPUT};
+                color: {FG};
+                border: 1px solid {BORDER};
+                border-radius: 8px;
+                padding: 6px;
+            }}
+            QListWidget::item {{
+                padding: 8px;
+                border-radius: 6px;
+            }}
+            QListWidget::item:hover {{
+                background-color: {BORDER};
+            }}
+            QListWidget::item:selected {{
+                background-color: {ACCENT};
+                color: white;
+            }}
+        """)
+
         history = parent.settings.get("history", [])
         for i, entry in enumerate(history, 1):
             date = entry.get("date", "?")
             title_ = entry.get("title", "?")
-            self.list.addItem(f"{i:2}. [{date}] {title_}")
+
+            item = QListWidgetItem(f"{i:2}. [{date}] {title_}")
+
+            # превью
+            thumb_path = entry.get("thumb")
+            if thumb_path and os.path.exists(thumb_path):
+                pix = QPixmap(thumb_path).scaled(
+                    80, 52,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                item.setIcon(QIcon(pix))
+            else:
+                item.setIcon(self._placeholder_icon(entry))
+
+            item.setData(Qt.ItemDataRole.UserRole, entry)
+            self.list.addItem(item)
 
         layout.addWidget(self.list, stretch=1)
 
+        # ==== Кнопки ====
         btn_row = QHBoxLayout()
+
         b_open = QPushButton("▶ Открыть файл")
         b_open.clicked.connect(self._open_file)
         btn_row.addWidget(b_open)
@@ -3067,6 +3376,10 @@ class HistoryDialog(QDialog):
         b_folder = QPushButton("📂 Папка")
         b_folder.clicked.connect(self._open_folder)
         btn_row.addWidget(b_folder)
+
+        b_url = QPushButton("🔗 Открыть URL")
+        b_url.clicked.connect(self._open_url)
+        btn_row.addWidget(b_url)
 
         btn_row.addStretch()
 
@@ -3076,34 +3389,84 @@ class HistoryDialog(QDialog):
 
         layout.addLayout(btn_row)
 
+    def _placeholder_icon(self, entry):
+        """Заглушка — иконка с эмодзи."""
+        file_path = entry.get("file", "").lower()
+        if file_path.endswith((".mp4", ".mkv", ".webm")):
+            emoji = "🎬"
+        else:
+            emoji = "🎵"
+
+        pix = QPixmap(80, 52)
+        pix.fill(QColor(BG_CARD))
+
+        painter = QPainter(pix)
+        painter.setPen(QColor(FG_DIM))
+        font = QFont("Segoe UI Emoji", 24)
+        painter.setFont(font)
+        painter.drawText(pix.rect(), Qt.AlignmentFlag.AlignCenter, emoji)
+        painter.end()
+
+        return QIcon(pix)
+
+    def _get_selected_entry(self):
+        item = self.list.currentItem()
+        if not item:
+            return None
+        return item.data(Qt.ItemDataRole.UserRole)
+
     def _open_file(self):
-        item = self.list.currentRow()
-        history = self.parent_app.settings.get("history", [])
-        if 0 <= item < len(history):
-            f = history[item].get("file", "")
-            if f and os.path.exists(f):
-                try:
-                    from modules.toast import open_file
-                    open_file(f)
-                except Exception:
-                    pass
+        entry = self._get_selected_entry()
+        if not entry:
+            return
+        f = entry.get("file", "")
+        if f and os.path.exists(f):
+            try:
+                from modules.toast import open_file
+                open_file(f)
+            except Exception:
+                pass
 
     def _open_folder(self):
-        item = self.list.currentRow()
-        history = self.parent_app.settings.get("history", [])
-        if 0 <= item < len(history):
-            f = history[item].get("file", "")
-            if f:
-                try:
-                    from modules.toast import open_folder
-                    open_folder(os.path.dirname(f))
-                except Exception:
-                    pass
+        entry = self._get_selected_entry()
+        if not entry:
+            return
+        f = entry.get("file", "")
+        if f:
+            try:
+                from modules.toast import open_folder
+                open_folder(os.path.dirname(f))
+            except Exception:
+                pass
+
+    def _open_url(self):
+        entry = self._get_selected_entry()
+        if not entry:
+            return
+        url = entry.get("url", "")
+        if url:
+            import webbrowser
+            webbrowser.open(url)
 
     def _clear(self):
+        reply = QMessageBox.question(
+            self, "Очистить историю",
+            "Удалить всю историю скачиваний?\n"
+            "Превью тоже будут удалены."
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
         self.parent_app.settings["history"] = []
         settings.save(self.parent_app.settings)
         self.list.clear()
+
+        # чистим превью
+        try:
+            from modules import thumbs
+            thumbs.cleanup_orphans([])
+        except Exception:
+            pass
 
 
 class ChangelogDialog(QDialog):
@@ -3869,6 +4232,40 @@ class AdminPanelDialog(QDialog):
         hol_row.addWidget(b_apply_hol)
 
         layout.addLayout(hol_row)
+        
+        # ============================================
+        # 2.5 КОНТЕНТ (скрины / видео)
+        # ============================================
+        content_title = QLabel("📸 Контент")
+        content_title.setStyleSheet(f"color: {FG}; font-size: 14px; font-weight: bold;")
+        layout.addWidget(content_title)
+
+        content_row1 = QHBoxLayout()
+
+        b_shot_top = QPushButton("📸 Скрины топ-15")
+        b_shot_top.setToolTip("Снять 15 топовых тем в docs/screenshots/themes/")
+        b_shot_top.clicked.connect(self._make_screenshots_top)
+        content_row1.addWidget(b_shot_top)
+
+        b_shot_all = QPushButton("📸 Скрины все темы")
+        b_shot_all.setToolTip("Снять ВСЕ темы (~5 минут)")
+        b_shot_all.clicked.connect(self._make_screenshots_all)
+        content_row1.addWidget(b_shot_all)
+
+        layout.addLayout(content_row1)
+
+        content_row2 = QHBoxLayout()
+
+        b_video_holidays = QPushButton("🎬 Видео праздников")
+        b_video_holidays.setToolTip("Записать 8 праздников (только окно)")
+        b_video_holidays.clicked.connect(self._make_holiday_videos)
+        content_row2.addWidget(b_video_holidays)
+
+        b_open_docs = QPushButton("📂 Открыть docs/")
+        b_open_docs.clicked.connect(self._open_docs_folder)
+        content_row2.addWidget(b_open_docs)
+
+        layout.addLayout(content_row2)
 
         # ============================================
         # 3. LIQUID GLASS
@@ -4235,6 +4632,79 @@ class AdminPanelDialog(QDialog):
                 "Все настройки сброшены.\nПерезапусти приложение."
             )
 
+    # ============================================
+    # МЕТОДЫ: КОНТЕНТ
+    # ============================================
+    def _run_content_script(self, script_name, args=None, title=""):
+        """Запускает скрипт в фоне и показывает тост."""
+        import subprocess
+        from config import BASE_DIR
+
+        script_path = os.path.join(BASE_DIR, script_name)
+        if not os.path.exists(script_path):
+            QMessageBox.warning(
+                self, "Не найдено",
+                f"Скрипт не найден:\n{script_path}"
+            )
+            return
+
+        cmd = [sys.executable, script_path]
+        if args:
+            cmd.extend(args)
+
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "utf-8"
+
+        try:
+            subprocess.Popen(
+                cmd,
+                cwd=BASE_DIR,
+                env=env,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=subprocess.CREATE_NEW_CONSOLE,
+            )
+            QtToast(
+                self.parent_app,
+                f"🚀 Запущено: {title}\n"
+                f"Смотри консоль — прогресс там",
+                duration=4000,
+            )
+        except Exception as e:
+            QMessageBox.critical(
+                self, "Ошибка запуска",
+                f"Не удалось запустить:\n{e}"
+            )
+
+    def _make_screenshots_top(self):
+        self._run_content_script(
+            "make_theme_screenshots.py",
+            title="Скрины топ-15",
+        )
+
+    def _make_screenshots_all(self):
+        self._run_content_script(
+            "make_theme_screenshots.py",
+            args=["--all"],
+            title="Скрины всех тем",
+        )
+
+    def _make_holiday_videos(self):
+        self._run_content_script(
+            "make_holiday_videos.py",
+            title="Видео праздников",
+        )
+
+    def _open_docs_folder(self):
+        """Открывает папку docs/."""
+        from config import BASE_DIR
+        docs_dir = os.path.join(BASE_DIR, "docs")
+        os.makedirs(docs_dir, exist_ok=True)
+        try:
+            os.startfile(docs_dir)
+        except Exception as e:
+            QMessageBox.warning(self, "Ошибка", f"Не удалось открыть:\n{e}")
+
     def _disable_admin(self):
         reply = QMessageBox.question(
             self, "Выйти из админа",
@@ -4265,30 +4735,43 @@ def run():
     app = QApplication.instance() or QApplication(sys.argv)
     app.setStyle("Fusion")
 
-    try:
-        from modules.sounds import startup
-        startup()
-    except Exception:
-        pass
+    # ==== РЕЖИМЫ ====
+    screenshot_mode = "--screenshot-mode" in sys.argv
+    video_mode = "--video-mode" in sys.argv
+    auto_mode = screenshot_mode or video_mode
 
-    # === ПАСХАЛКА ГАСТЕРА — ДО ГЛАВНОГО ОКНА ===
-    # Проверяем шанс при ЗАПУСКЕ, если тема — undertale
-    try:
-        from modules import settings as _s
-        s = _s.load()
-        if s.get("theme") == "undertale":
-            from modules.gaster_dialog import check_gaster_chance, show_gaster
-            if check_gaster_chance():
-                print("💀 GASTER CHANCE HIT — до главного окна")
-                show_gaster(None)
-                # show_gaster → sys.exit(0), окно НЕ создастся
-                return
-    except Exception as e:
-        print(f"⚠️ Гастер: {e}")
-    # === КОНЕЦ ===
+    # ==== ЗВУК ЗАПУСКА ====
+    if not auto_mode:
+        try:
+            from modules.sounds import startup
+            startup()
+        except Exception:
+            pass
 
+    # ==== ПАСХАЛКА ГАСТЕРА — только в обычном режиме ====
+    if not auto_mode:
+        try:
+            from modules import settings as _s
+            s = _s.load()
+            if s.get("theme") == "undertale":
+                from modules.gaster_dialog import check_gaster_chance, show_gaster
+                if check_gaster_chance():
+                    print("💀 GASTER CHANCE HIT — до главного окна")
+                    show_gaster(None)
+                    return
+        except Exception as e:
+            print(f"⚠️ Гастер: {e}")
+
+    # ==== СОЗДАЁМ ОКНО ====
     window = DownloaderApp()
     window.show()
+
+    # ==== ЦЕНТРИРОВАНИЕ — только в обычном режиме ====
+    if not auto_mode:
+        screen = QApplication.primaryScreen().availableGeometry()
+        x = screen.x() + (screen.width() - window.width()) // 2
+        y = screen.y() + (screen.height() - window.height()) // 2
+        window.move(x, y)
 
     app.exec()
 

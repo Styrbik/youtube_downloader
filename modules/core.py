@@ -199,6 +199,24 @@ def download_video(url, format_id, output_dir, container='mp4',
     opts = base_opts(output_dir)
     opts['outtmpl'] = _build_outtmpl(output_dir, name_suffix, rename_if_exists)
 
+    # --- скачивать обложку для превью ---
+    opts['writethumbnail'] = True
+
+    # --- субтитры ---
+    from modules import settings as _settings
+    _s = _settings.load()
+
+    if _s.get("download_subtitles", False):
+        langs = _s.get("subtitles_langs", ["ru"])
+        opts.update({
+            'writesubtitles': True,
+            'writeautomaticsub': _s.get("subtitles_auto", True),
+            'subtitleslangs': langs,
+            'subtitlesformat': 'srt',
+            'retries': 5,
+            'extractor_retries': 3,
+        })
+
     # --- селектор ---
     if audio_mode == 'none':
         if format_id:
@@ -208,9 +226,45 @@ def download_video(url, format_id, output_dir, container='mp4',
     else:
         opts['format'] = _video_selector(format_id)
 
+    # --- скачивать обложку для превью ---
+    opts['writethumbnail'] = True
+
+    # --- субтитры ---
+    from modules import settings as _settings
+    _s = _settings.load()
+
+    if _s.get("download_subtitles", False):
+        langs = _s.get("subtitles_langs", ["ru"])
+        opts.update({
+            'writesubtitles': True,
+            'writeautomaticsub': _s.get("subtitles_auto", True),
+            'subtitleslangs': langs,
+            'subtitlesformat': 'srt',
+            'retries': 5,
+            'extractor_retries': 3,
+        })
+
     # --- merge в контейнер ---
     if container in ('mp4', 'mkv', 'webm'):
         opts['merge_output_format'] = container
+        
+    # --- скачивать обложку для превью ---
+    opts['writethumbnail'] = True
+
+    # --- субтитры ---
+    from modules import settings as _settings
+    _s = _settings.load()
+
+    if _s.get("download_subtitles", False):
+        langs = _s.get("subtitles_langs", ["ru"])
+        opts.update({
+            'writesubtitles': True,
+            'writeautomaticsub': _s.get("subtitles_auto", True),
+            'subtitleslangs': langs,
+            'subtitlesformat': 'srt',
+            'retries': 5,
+            'extractor_retries': 3,
+        })
 
     # --- постпроцессоры (ТОЛЬКО для аудио-битрейта) ---
     # НИКАКИХ FFmpegExtractAudio! Это вырезает видео!
