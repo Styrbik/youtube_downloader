@@ -859,6 +859,272 @@
     footer .footer-links a:hover {
       color: var(--accent);
     }
+	
+    /* ============ ГАЛЕРЕЯ ТЕМ ============ */
+    .themes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .themes-loading,
+    .themes-error {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: var(--fg-dim);
+      padding: 40px 0;
+      font-size: 14px;
+    }
+
+    .theme-card {
+      position: relative;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .theme-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(230, 33, 23, 0.25);
+    }
+
+    .theme-card img {
+      display: block;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 900 / 640;
+      object-fit: cover;
+    }
+
+    .theme-card .theme-name {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 30px 14px 10px;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.95), transparent);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    /* ============ КАРУСЕЛЬ ВИДЕО ============ */
+    .holidays-carousel {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 900 / 640;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--bg-card);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+      transition: border-color 0.3s;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .holidays-carousel:hover {
+      border-color: var(--accent);
+    }
+
+    .holidays-track {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1);
+      will-change: transform;
+    }
+
+    .holiday-slide {
+      flex: 0 0 100%;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    .holiday-slide video {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top center;
+    }
+
+    .holiday-caption {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 60px 24px 20px;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.95), transparent);
+      color: white;
+      font-size: 15px;
+      font-weight: 600;
+      pointer-events: none;
+    }
+
+    /* ============ СЕКРЕТЫ (намёк) ============ */
+    .secrets-hint {
+      max-width: 600px;
+      margin: 0 auto;
+      background: var(--bg-card);
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      text-align: center;
+      transition: all 0.3s;
+    }
+
+    .secrets-hint:hover {
+      border-color: var(--accent);
+      background: var(--bg-card-hover);
+    }
+
+    .secrets-hint p {
+      color: var(--fg-dim);
+      font-size: 15px;
+      line-height: 1.7;
+      margin: 0;
+    }
+
+    .secrets-hint em {
+      color: var(--accent);
+      font-style: normal;
+      font-weight: 600;
+    }
+
+    /* ============ LIGHTBOX ============ */
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.92);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      padding: 40px;
+      cursor: zoom-out;
+      opacity: 0;
+      transition: opacity 0.3s;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .lightbox.open {
+      display: flex;
+      opacity: 1;
+    }
+
+    .lightbox-img {
+      max-width: 95vw;
+      max-height: 90vh;
+      border-radius: 12px;
+      box-shadow: 0 20px 80px rgba(0, 0, 0, 0.8);
+      cursor: default;
+    }
+
+    .lightbox-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 44px;
+      height: 44px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      color: #fff;
+      font-size: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .lightbox-close:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      transform: rotate(90deg);
+    }
+
+    .lightbox-caption {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 8px 20px;
+      border-radius: 100px;
+      backdrop-filter: blur(8px);
+      pointer-events: none;
+    }
+
+    /* ============ КНОПКА "ПОКАЗАТЬ ВСЕ" ============ */
+    .themes-more-wrap {
+      text-align: center;
+      margin-top: 40px;
+    }
+
+    .btn-more {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 32px;
+      background: var(--bg-card);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      font-family: inherit;
+    }
+
+    .btn-more:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(230, 33, 23, 0.4);
+    }
+
+    .btn-more:active {
+      transform: translateY(0);
+    }
+
+    /* Скрытая часть сетки */
+    .themes-grid .theme-card.hidden {
+      display: none;
+    }
+
+    /* Плавное появление при раскрытии */
+    .theme-card.reveal {
+      animation: themeReveal 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+    }
+
+    @keyframes themeReveal {
+      from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
 
     /* ============ АДАПТИВНОСТЬ ============ */
     @media (max-width: 768px) {
@@ -909,6 +1175,24 @@
 
       .carousel-dots {
         gap: 8px;
+      }
+      .themes-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 10px;
+      }
+
+      .theme-card .theme-name {
+        font-size: 11px;
+        padding: 20px 10px 8px;
+      }
+
+      .lightbox {
+        padding: 16px;
+      }
+
+      .lightbox-caption {
+        font-size: 12px;
+        padding: 6px 14px;
       }
     }
   </style>
@@ -1137,6 +1421,81 @@
       </div>
     </div>
   </section>
+  
+  <!-- ГАЛЕРЕЯ ТЕМ -->
+  <section class="section" id="themes">
+    <div class="container">
+      <h2 class="section-title animate">🎨 Все темы</h2>
+      <p class="section-subtitle animate">
+        64 темы — от классической тёмной до Undertale, Frostmourne и Minecraft.
+        Клик по картинке — увеличить.
+      </p>
+
+      <div class="themes-grid animate" id="themes-grid">
+        <!-- Сюда JS подгрузит скрины -->
+        <div class="themes-loading">⏳ Загружаю темы...</div>
+      </div>
+
+      <div class="themes-more-wrap animate" id="themes-more-wrap" style="display:none;">
+        <button class="btn-more" id="themes-show-all">
+          ✨ Посмотреть все темы
+        </button>
+      </div>
+
+      <div class="themes-more-wrap animate" id="themes-more-wrap" style="display:none;">
+        <button class="btn-more" id="themes-show-all">
+          ✨ Посмотреть все темы
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ВИДЕО ПРАЗДНИКОВ -->
+  <section class="section" id="holidays">
+    <div class="container">
+      <h2 class="section-title animate">🎄 Праздничные темы</h2>
+      <p class="section-subtitle animate">
+        Живые видео с падающими тыквами, снежинками и черепами.
+        Включаются автоматом в нужный день.
+      </p>
+
+      <div class="holidays-carousel animate">
+        <div class="holidays-track" id="holidays-track">
+          <!-- Сюда JS подгрузит видео -->
+        </div>
+
+        <button class="carousel-btn prev" id="holidays-prev" aria-label="Назад">❮</button>
+        <button class="carousel-btn next" id="holidays-next" aria-label="Вперёд">❯</button>
+      </div>
+
+      <div class="carousel-dots" id="holidays-dots"></div>
+    </div>
+  </section>
+
+  <!-- ПАСХАЛКИ (намёк) -->
+  <section class="section" id="secrets">
+    <div class="container">
+      <h2 class="section-title animate">🥚 Секреты</h2>
+      <p class="section-subtitle animate">
+        В приложении спрятано несколько пасхалок.
+        Введи что-нибудь необычное в поле ссылки — вдруг что-то произойдёт.
+      </p>
+
+      <div class="secrets-hint animate">
+        <p>
+          <strong>Подсказка:</strong> попробуй слова, которых <em>не должно быть</em> в поле URL.
+          Кто ищет — тот найдёт.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- МОДАЛЬНОЕ ОКНО ДЛЯ УВЕЛИЧЕНИЯ СКРИНА -->
+  <div class="lightbox" id="lightbox">
+    <button class="lightbox-close" id="lightbox-close">✕</button>
+    <img class="lightbox-img" id="lightbox-img" alt="">
+    <div class="lightbox-caption" id="lightbox-caption"></div>
+  </div>
 
   <!-- ЧТО НОВОГО (CHANGELOG С GITHUB) -->
   <section class="section" id="changelog">
@@ -1515,6 +1874,297 @@
 
     goToSlide(0);
     startAutoplay();
+    // ============================================================
+    // 6. ГАЛЕРЕЯ ТЕМ (загружается из GitHub API)
+    // ============================================================
+    const THEMES_API = 'https://api.github.com/repos/Styrbik/youtube_downloader/contents/docs/screenshots/themes';
+
+    // Красивые имена тем
+    const THEME_NAMES = {
+        "dark": "🌙 Тёмная",
+        "undertale": "❤️ Undertale",
+        "frostmourne": "❄️ Frostmourne",
+        "minecraft": "⛏️ Minecraft",
+        "halloween": "🎃 Хэллоуин",
+        "newyear": "🎄 Новый год",
+        "doomsday": "💀 Doomsday",
+        "march8": "🌸 8 марта",
+        "september1": "🎒 1 сентября",
+        "feb14": "❤️ 14 февраля",
+        "april12": "🚀 12 апреля",
+        "may1": "🎉 1 мая",
+        "cyberpunk": "🩸 Cyberpunk",
+        "matrix": "💚 Matrix",
+        "catppuccin": "🐱 Catppuccin",
+        "nord": "❄️ Nord",
+        "vaporwave": "🌴 Vaporwave",
+        "synthwave": "🌴 Synthwave",
+        "cozy": "🧸 Cozy",
+    };
+
+    function prettyThemeName(id) {
+        return THEME_NAMES[id] || id.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    // Сколько тем показывать сначала
+    const THEMES_PREVIEW_COUNT = 12;
+
+    function loadThemes() {
+        const grid = document.getElementById('themes-grid');
+        const moreWrap = document.getElementById('themes-more-wrap');
+        const showAllBtn = document.getElementById('themes-show-all');
+
+        fetch(THEMES_API)
+            .then(r => {
+                if (!r.ok) throw new Error('API error');
+                return r.json();
+            })
+            .then(files => {
+                if (!Array.isArray(files)) throw new Error('not array');
+
+                const pngs = files.filter(f => f.name.endsWith('.png'));
+
+                if (pngs.length === 0) {
+                    grid.innerHTML = '<div class="themes-error">😔 Темы не найдены</div>';
+                    return;
+                }
+
+                // --- сортируем: сначала "топовые" (по THEME_NAMES), потом остальные ---
+                const priorityOrder = [
+                    "dark", "undertale", "frostmourne", "minecraft",
+                    "halloween", "newyear", "doomsday", "march8",
+                    "cyberpunk", "matrix", "vaporwave", "synthwave",
+                ];
+
+                pngs.sort((a, b) => {
+                    const aId = a.name.replace('.png', '');
+                    const bId = b.name.replace('.png', '');
+                    const aIdx = priorityOrder.indexOf(aId);
+                    const bIdx = priorityOrder.indexOf(bId);
+                    if (aIdx === -1 && bIdx === -1) return aId.localeCompare(bId);
+                    if (aIdx === -1) return 1;
+                    if (bIdx === -1) return -1;
+                    return aIdx - bIdx;
+                });
+
+                // --- строим карточки ---
+                grid.innerHTML = '';
+                pngs.forEach((f, i) => {
+                    const themeId = f.name.replace('.png', '');
+                    const card = document.createElement('div');
+                    card.className = 'theme-card';
+                    if (i >= THEMES_PREVIEW_COUNT) {
+                        card.classList.add('hidden');
+                    }
+                    card.innerHTML = `
+                        <img src="${f.download_url}" alt="${prettyThemeName(themeId)}" loading="lazy">
+                        <div class="theme-name">${prettyThemeName(themeId)}</div>
+                    `;
+                    card.addEventListener('click', () => {
+                        openLightbox(f.download_url, prettyThemeName(themeId));
+                    });
+                    grid.appendChild(card);
+                });
+
+                // --- кнопка "показать все" ---
+                if (pngs.length > THEMES_PREVIEW_COUNT) {
+                    moreWrap.style.display = 'block';
+                    showAllBtn.textContent = `✨ Посмотреть все темы`;
+
+                    showAllBtn.addEventListener('click', () => {
+                        const hidden = grid.querySelectorAll('.theme-card.hidden');
+                        hidden.forEach((card, i) => {
+                            card.classList.remove('hidden');
+                            card.classList.add('reveal');
+                            card.style.animationDelay = `${i * 30}ms`;
+                        });
+                        moreWrap.style.display = 'none';
+
+                        // Плавный скролл к первой показанной
+                        const firstNew = grid.querySelector('.theme-card.reveal');
+                        if (firstNew) {
+                            firstNew.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    });
+                }
+            })
+            .catch(err => {
+                console.warn('Темы не загрузились:', err);
+                grid.innerHTML = `
+                    <div class="themes-error">
+                        😔 Не удалось загрузить темы.<br>
+                        <a href="https://github.com/Styrbik/youtube_downloader/tree/main/docs/screenshots/themes" style="color: var(--accent);">
+                            Открыть на GitHub →
+                        </a>
+                    </div>
+                `;
+            });
+    }
+
+    // ============================================================
+    // 7. КАРУСЕЛЬ ВИДЕО ПРАЗДНИКОВ
+    // ============================================================
+    const HOLIDAYS_API = 'https://api.github.com/repos/Styrbik/youtube_downloader/contents/docs/videos/holidays';
+
+    const HOLIDAY_NAMES = {
+        "halloween": "🎃 Хэллоуин",
+        "doomsday": "💀 Doomsday",
+        "newyear": "🎄 Новый год",
+        "march8": "🌸 8 марта",
+        "september1": "🎒 1 сентября",
+        "feb14": "❤️ 14 февраля",
+        "april12": "🚀 12 апреля",
+        "may1": "🎉 1 мая",
+    };
+
+    let holidaysTrack = null;
+    let holidaysSlides = [];
+    let holidaysDots = [];
+    let currentHoliday = 0;
+    let holidaysTimer = null;
+
+    function loadHolidays() {
+        const track = document.getElementById('holidays-track');
+        const dotsBox = document.getElementById('holidays-dots');
+
+        fetch(HOLIDAYS_API)
+            .then(r => {
+                if (!r.ok) throw new Error('API error');
+                return r.json();
+            })
+            .then(files => {
+                if (!Array.isArray(files)) throw new Error('not array');
+
+                const mp4s = files.filter(f => f.name.endsWith('.mp4'));
+                if (mp4s.length === 0) {
+                    track.innerHTML = '<div class="holiday-slide"><div class="holiday-caption">Видео не найдены</div></div>';
+                    return;
+                }
+
+                track.innerHTML = '';
+                dotsBox.innerHTML = '';
+
+                mp4s.forEach((f, i) => {
+                    const id = f.name.replace('.mp4', '');
+                    const name = HOLIDAY_NAMES[id] || id;
+
+                    // слайд
+                    const slide = document.createElement('div');
+                    slide.className = 'holiday-slide';
+                    slide.innerHTML = `
+                        <video autoplay loop muted playsinline preload="metadata">
+                            <source src="${f.download_url}" type="video/mp4">
+                        </video>
+                        <div class="holiday-caption">${name}</div>
+                    `;
+                    track.appendChild(slide);
+
+                    // точка
+                    const dot = document.createElement('button');
+                    dot.className = 'carousel-dot' + (i === 0 ? ' active' : '');
+                    dot.dataset.slide = i;
+                    dot.setAttribute('aria-label', name);
+                    dot.addEventListener('click', () => goToHoliday(i));
+                    dotsBox.appendChild(dot);
+                });
+
+                holidaysTrack = track;
+                holidaysSlides = document.querySelectorAll('#holidays-track .holiday-slide');
+                holidaysDots = document.querySelectorAll('#holidays-dots .carousel-dot');
+
+                // кнопки
+                document.getElementById('holidays-prev').addEventListener('click', () => nextHoliday(-1));
+                document.getElementById('holidays-next').addEventListener('click', () => nextHoliday(1));
+
+                startHolidaysAutoplay();
+            })
+            .catch(err => {
+                console.warn('Видео не загрузились:', err);
+                track.innerHTML = `
+                    <div class="holiday-slide">
+                        <div class="holiday-caption" style="padding: 40px; text-align: center;">
+                            😔 Не удалось загрузить видео.<br>
+                            <a href="https://github.com/Styrbik/youtube_downloader/tree/main/docs/videos/holidays" style="color: var(--accent);">
+                                Открыть на GitHub →
+                            </a>
+                        </div>
+                    </div>
+                `;
+            });
+    }
+
+    function goToHoliday(index) {
+        if (holidaysSlides.length === 0) return;
+
+        if (index < 0) index = holidaysSlides.length - 1;
+        if (index >= holidaysSlides.length) index = 0;
+
+        currentHoliday = index;
+        holidaysTrack.style.transform = `translateX(${-index * 100}%)`;
+
+        holidaysDots.forEach((dot, i) => {
+            dot.classList.toggle('active', i === index);
+        });
+
+        // пауза видео в неактивных слайдах
+        holidaysSlides.forEach((slide, i) => {
+            const video = slide.querySelector('video');
+            if (video) {
+                if (i === index) video.play().catch(() => {});
+                else video.pause();
+            }
+        });
+    }
+
+    function nextHoliday(step) {
+        goToHoliday(currentHoliday + step);
+        startHolidaysAutoplay();
+    }
+
+    function startHolidaysAutoplay() {
+        if (holidaysTimer) clearInterval(holidaysTimer);
+        holidaysTimer = setInterval(() => {
+            goToHoliday(currentHoliday + 1);
+        }, 8000);
+    }
+
+    // ============================================================
+    // 8. LIGHTBOX
+    // ============================================================
+    function openLightbox(src, caption) {
+        const lb = document.getElementById('lightbox');
+        const img = document.getElementById('lightbox-img');
+        const cap = document.getElementById('lightbox-caption');
+
+        img.src = src;
+        cap.textContent = caption || '';
+        lb.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+        const lb = document.getElementById('lightbox');
+        lb.classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    // Закрытие по клику на фон или крестик
+    document.getElementById('lightbox').addEventListener('click', (e) => {
+        if (e.target.id === 'lightbox' || e.target.id === 'lightbox-close') {
+            closeLightbox();
+        }
+    });
+
+    // Esc закрывает lightbox
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeLightbox();
+    });
+
+    // ============================================================
+    // 9. ИНИЦИАЛИЗАЦИЯ
+    // ============================================================
+    loadThemes();
+    loadHolidays();
   </script>
 
 </body>
