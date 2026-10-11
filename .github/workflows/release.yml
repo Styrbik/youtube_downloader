@@ -122,6 +122,16 @@ jobs:
           pip install -r requirements.txt
           pip install pyinstaller
 
+      - name: Download ffmpeg
+        shell: bash
+        run: |
+          echo "📥 Скачиваю ffmpeg..."
+          curl -L -o ffmpeg.zip https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
+          unzip -q ffmpeg.zip
+          find . -name "ffmpeg.exe" -type f -exec cp {} ./ffmpeg.exe \;
+          ls -la ffmpeg.exe
+          echo "✅ ffmpeg.exe готов"
+
       # ============================================================
       #                    СБОРКА EXE
       # ============================================================
