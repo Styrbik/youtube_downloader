@@ -1,0 +1,195 @@
+name: Smart Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ============================================================
+      #                    ВЕРСИЯ ИЗ ТЕГА, НАЗВАНИЕ ИЗ КОММИТА
+      # ============================================================
+      - name: Get version and build name
+        id: info
+        shell: bash
+        run: |
+          # Версия из тега: refs/tags/v0.8.0 → 0.8.0
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Version: $VERSION"
+
+          # Название из коммита, к которому привязан тег
+          BUILD_NAME=$(git log -1 --pretty=%s)
+          echo "build_name=$BUILD_NAME" >> $GITHUB_OUTPUT
+          echo "📦 Build name: $BUILD_NAME"
+
+      # ============================================================
+      #                    ОБНОВЛЯЕМ CONFIG.PY
+      # ============================================================
+      - name: Update config.py
+        shell: bash
+        run: |
+          VERSION="${{ steps.info.outputs.version }}"
+          BUILD_NAME="${{ steps.info.outputs.build_name }}"
+
+          sed -i "s/APP_VERSION = \".*\"/APP_VERSION = \"$VERSION\"/" config.py
+          sed -i "s/APP_BUILD_NAME = \".*\"/APP_BUILD_NAME = \"$BUILD_NAME\"/" config.py
+
+          echo "✅ config.py обновлён"
+          grep "APP_VERSION\|APP_BUILD_NAME" config.py
+
+      # ============================================================
+      #                    ОБНОВЛЯЕМ INSTALLER.ISS
+      # ============================================================
+      - name: Update installer.iss
+        shell: bash
+        run: |
+          VERSION="${{ steps.info.outputs.version }}"
+
+          sed -i "s/AppVersion=.*/AppVersion=$VERSION/" installer.iss
+          sed -i "s/AppVerName=.*/AppVerName=YouTube Downloader v$VERSION/" installer.iss
+          sed -i "s/OutputBaseFilename=.*/OutputBaseFilename=YouTubeDownloader_Setup_v$VERSION/" installer.iss
+
+          echo "✅ installer.iss обновлён"
+          grep "AppVersion\|AppVerName\|OutputBaseFilename" installer.iss
+
+      # ============================================================
+      #                    ГЕНЕРИРУЕМ VERSION_INFO.TXT
+      # ============================================================
+      - name: Generate version_info.txt
+        shell: bash
+        run: |
+          VERSION="${{ steps.info.outputs.version }}"
+          BUILD_NAME="${{ steps.info.outputs.build_name }}"
+
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+
+          cat > version_info.txt << EOF
+          VSVersionInfo(
+            ffi=FixedFileInfo(
+              filevers=($MAJOR, $MINOR, $PATCH, 0),
+              prodvers=($MAJOR, $MINOR, $PATCH, 0),
+              mask=0x3f,
+              flags=0x0,
+              OS=0x40004,
+              fileType=0x1,
+              subtype=0x0,
+              date=(0, 0)
+            ),
+            kids=[
+              StringFileInfo([
+                StringTable(
+                  u'040904B0',
+                  [StringStruct(u'CompanyName', u'Styrbik'),
+                   StringStruct(u'FileDescription', u'YouTube Downloader - $BUILD_NAME'),
+                   StringStruct(u'FileVersion', u'$VERSION'),
+                   StringStruct(u'InternalName', u'YouTubeDownloader'),
+                   StringStruct(u'LegalCopyright', u'© 2026 Styrbik Corp.'),
+                   StringStruct(u'OriginalFilename', u'YouTubeDownloader.exe'),
+                   StringStruct(u'ProductName', u'YouTube Downloader'),
+                   StringStruct(u'ProductVersion', u'$VERSION')])
+              ]),
+              VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
+            ]
+          )
+          EOF
+
+          echo "✅ version_info.txt сгенерирован"
+
+      # ============================================================
+      #                    PYTHON + ЗАВИСИМОСТИ
+      # ============================================================
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      # ============================================================
+      #                    СБОРКА EXE
+      # ============================================================
+      - name: Build EXE
+        run: pyinstaller YouTubeDownloader.spec --clean
+
+      # ============================================================
+      #                    СБОРКА УСТАНОВЩИКА
+      # ============================================================
+      - name: Setup Inno Setup
+        run: choco install innosetup -y
+
+      - name: Build Installer
+        run: iscc installer.iss
+
+      # ============================================================
+      #                    КОММИНТИМ ОБНОВЛЕНИЯ В MAIN
+      # ============================================================
+      - name: Commit version updates
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin main
+          git checkout main
+          git pull origin main
+
+          # Восстанавливаем изменённые файлы из тега
+          git checkout ${{ github.ref }} -- config.py installer.iss version_info.txt 2>/dev/null || echo "Файлы уже на месте"
+
+          # Если изменений нет — пропускаем
+          if git diff --quiet; then
+            echo "✓ Изменений нет"
+          else
+            git add config.py installer.iss version_info.txt
+            git commit -m "🔧 Auto-version v${{ steps.info.outputs.version }}"
+            git push origin main
+            echo "✅ Изменения запушены в main"
+          fi
+
+      # ============================================================
+      #                    СОЗДАНИЕ РЕЛИЗА
+      # ============================================================
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }} — ${{ steps.info.outputs.build_name }}
+          draft: false
+          prerelease: false
+          files: |
+            installer/YouTubeDownloader_Setup_v${{ steps.info.outputs.version }}.exe
+          body: |
+            ## 🎬 YouTube Downloader ${{ github.ref_name }}
+
+            **${{ steps.info.outputs.build_name }}**
+
+            ### 📦 Установщик
+            Скачай `YouTubeDownloader_Setup_v${{ steps.info.outputs.version }}.exe` ниже.
+
+            ### 🔧 Что внутри
+            - PyQt6 интерфейс
+            - 64+ тем
+            - Встроенный плеер
+            - Пасхалки (Undertale, Minecraft, Frostmourne)
+            - 24 достижения
+            - Субтитры
+            - История с превью
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
