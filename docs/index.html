@@ -2136,11 +2136,13 @@
         const releaseName = data.name || data.tag_name || 'unknown';
         badge.innerHTML = `&#9889; ${releaseName}`;
 
-        // ищем именно .zip в релизах
-        const zipAsset = data.assets
-          ? data.assets.find(a => a.name.endsWith('.zip'))
-          : null;
-        const downloadUrl = zipAsset ? zipAsset.browser_download_url : null;
+        // Ищем .exe (инсталлер) или .zip (сборка) — что найдётся первым
+        let downloadUrl = null;
+        if (data.assets) {
+          const exeAsset = data.assets.find(a => a.name.toLowerCase().endsWith('.exe'));
+          const zipAsset = data.assets.find(a => a.name.toLowerCase().endsWith('.zip'));
+          downloadUrl = (exeAsset || zipAsset)?.browser_download_url || null;
+        }
 
         if (downloadUrl) {
           document.querySelectorAll('a[href*="releases/latest"]').forEach(link => {

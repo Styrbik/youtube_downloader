@@ -79,6 +79,9 @@ ACCENT_HOVER = "#ff3b30"
 ACCENT_PRESS = "#b71c1c"
 BORDER = "#3a3a3a"
 TITLEBAR_BG = "#151515"
+BTN_FG = "#ffffff"
+INPUT_FG = "#1a1a1a"
+CARD_FG = "#1a1a1a"
 
 def enable_acrylic_win10(hwnd, tint_color=(20, 20, 30, 140)):
     """Включает Acrylic (матовое стекло) на Windows 10."""
@@ -172,6 +175,75 @@ def _hex_to_rgba(hex_color, alpha=1.0):
     b = int(h[4:6], 16)
     return f"rgba({r}, {g}, {b}, {alpha})"
 
+def _relative_luminance(hex_color):
+    """Относительная яркость (WCAG)."""
+    h = hex_color.lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    r = int(h[0:2], 16) / 255
+    g = int(h[2:4], 16) / 255
+    b = int(h[4:6], 16) / 255
+
+    def _lin(c):
+        if c <= 0.03928:
+            return c / 12.92
+        return ((c + 0.055) / 1.055) ** 2.4
+
+    r, g, b = _lin(r), _lin(g), _lin(b)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def _contrast_ratio(bg_hex, fg_hex):
+    """Контраст между двумя цветами (WCAG)."""
+    l1 = _relative_luminance(bg_hex)
+    l2 = _relative_luminance(fg_hex)
+    lighter = max(l1, l2)
+    darker = min(l1, l2)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def _best_text_color(bg_hex, dark="#1a1a1a", light="#f5f0f0"):
+    """
+    Возвращает цвет текста с ЛУЧШИМ контрастом к фону.
+    Считает контраст для тёмного и светлого, выбирает лучший.
+    """
+    contrast_dark = _contrast_ratio(bg_hex, dark)
+    contrast_light = _contrast_ratio(bg_hex, light)
+    return dark if contrast_dark >= contrast_light else light
+
+
+def _auto_fg(theme):
+    """
+    Автоматически подбирает FG, FG_DIM, BTN_FG, INPUT_FG
+    на основе BG, BG_CARD, BG_INPUT, ACCENT.
+    """
+    result = dict(theme)
+
+    # Основной текст — по BG (фон окна)
+    result["FG"] = _best_text_color(theme["BG"])
+
+    # Текст на кнопках — по ACCENT
+    result["BTN_FG"] = _best_text_color(theme["ACCENT"])
+
+    # Текст в полях ввода — по BG_INPUT
+    result["INPUT_FG"] = _best_text_color(theme["BG_INPUT"])
+
+    # Текст на карточках — по BG_CARD
+    result["CARD_FG"] = _best_text_color(theme["BG_CARD"])
+
+    # FG_DIM — тот же цвет, но приглушённый
+    base = result["FG"]
+    if base == "#1a1a1a":
+        result["FG_DIM"] = "#5a5a5a"   # тёмно-серый для светлого фона
+    else:
+        result["FG_DIM"] = "#a0a0a0"   # светло-серый для тёмного фона
+
+    # DISABLED_FG — тоже по DISABLED
+    result["DISABLED_FG"] = _best_text_color(
+        theme.get("DISABLED", theme["BG_CARD"])
+    )
+
+    return result
 
 def _apply_liquid_glass(enabled, opacity_pct=70, blur_px=20):
     """
@@ -215,8 +287,10 @@ def _detect_platform(url):
 
 
 def _apply_theme(theme_name):
-    global BG, BG_CARD, BG_INPUT, FG, FG_DIM, ACCENT, ACCENT_HOVER, ACCENT_PRESS, BORDER, TITLEBAR_BG
+    global BG, BG_CARD, BG_INPUT, FG, FG_DIM, ACCENT, ACCENT_HOVER, ACCENT_PRESS, BORDER, TITLEBAR_BG, BTN_FG, INPUT_FG, CARD_FG
     t = get_theme(theme_name)
+    t = _auto_fg(t)   # ← автоподбор текста
+
     BG = t["BG"]
     BG_CARD = t["BG_CARD"]
     BG_INPUT = t["BG_INPUT"]
@@ -226,6 +300,9 @@ def _apply_theme(theme_name):
     ACCENT_HOVER = t["ACCENT_HOVER"]
     ACCENT_PRESS = t["ACCENT_PRESS"]
     BORDER = t["BORDER"]
+    BTN_FG = t["BTN_FG"]
+    INPUT_FG = t["INPUT_FG"]
+    CARD_FG = t["CARD_FG"]
 
     def _darker(hex_color, factor=0.7):
         h = hex_color.lstrip("#")
@@ -248,26 +325,40 @@ def build_qss(font_family="Segoe UI"):
             color: {FG};
             font-family: "{font_family}", "Segoe UI Emoji";
         }}
-        QLabel {{ background: transparent; }}
+        QLabel {{
+            background: transparent;
+            color: {FG};
+        }}
+        QFrame#card QLabel {{
+            color: {CARD_FG};
+        }}
+        QLabel#dir_label {{
+            color: {INPUT_FG};
+            background: transparent;
+        }}
         QFrame#card {{
             background-color: {BG_CARD};
             border: 1px solid {BORDER};
-             border-radius: 12px;
+            border-radius: 12px;
         }}
-        QFrame#card:hover {{ border: 1px solid {ACCENT}; }}
+        QFrame#card:hover {{
+            border: 1px solid {ACCENT};
+        }}
         QLineEdit {{
             background-color: {BG_INPUT};
-            color: {FG};
+            color: {INPUT_FG};
             border: 1px solid {BORDER};
             border-radius: 8px;
             padding: 8px 12px;
             font-size: 13px;
             selection-background-color: {ACCENT};
         }}
-        QLineEdit:focus {{ border: 1px solid {ACCENT}; }}
+        QLineEdit:focus {{
+            border: 1px solid {ACCENT};
+        }}
         QPushButton {{
             background-color: {BG_CARD};
-            color: {FG};
+            color: {CARD_FG};
             border: 1px solid {BORDER};
             border-radius: 8px;
             padding: 8px 16px;
@@ -280,100 +371,170 @@ def build_qss(font_family="Segoe UI"):
         }}
         QPushButton#primary {{
             background-color: {ACCENT};
-            color: white;
+            color: {BTN_FG};
             border: none;
             font-weight: bold;
         }}
-        QPushButton#primary:hover {{ background-color: {ACCENT_HOVER}; }}
-        QPushButton#primary:pressed {{ background-color: {ACCENT_PRESS}; }}
+        QPushButton#primary:hover {{
+            background-color: {ACCENT_HOVER};
+        }}
+        QPushButton#primary:pressed {{
+            background-color: {ACCENT_PRESS};
+        }}
         QPushButton#glow_btn {{
             background-color: {BG_CARD};
-            color: {FG};
+            color: {CARD_FG};
             border: 1px solid {BORDER};
             border-radius: 8px;
             padding: 8px 16px;
             font-size: 13px;
             font-weight: 500;
         }}
-        QPushButton#glow_btn:hover {{ border: 1px solid {ACCENT}; }}
+        QPushButton#glow_btn:hover {{
+            border: 1px solid {ACCENT};
+        }}
         QPushButton#glow_btn_primary {{
             background-color: {ACCENT};
-            color: white;
+            color: {BTN_FG};
             border: none;
             border-radius: 8px;
             padding: 8px 16px;
             font-size: 13px;
             font-weight: bold;
         }}
-        QPushButton#glow_btn_primary:hover {{ background-color: {ACCENT_HOVER}; }}
+        QPushButton#input_btn {{
+            background-color: {BG};
+            color: {FG};
+            border: 1px solid {BORDER};
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 14px;
+            font-weight: bold;
+        }}
+        QPushButton#input_btn:hover {{
+            background-color: {ACCENT};
+            color: {BTN_FG};
+            border: 1px solid {ACCENT};
+        }}
+        QPushButton#input_btn:pressed {{
+            background-color: {ACCENT_PRESS};
+            color: {BTN_FG};
+        }}
         QPushButton#titlebtn {{
             background-color: {TITLEBAR_BG};
+            color: {BTN_FG};
             border: none;
             border-radius: 0;
             padding: 6px 14px;
             font-size: 14px;
             font-family: "Segoe UI Symbol";
         }}
-        QPushButton#titlebtn:hover {{ background-color: {BG_CARD}; }}
+        QPushButton#titlebtn:hover {{
+            background-color: {BG_CARD};
+        }}
         QPushButton#closebtn {{
             background-color: {TITLEBAR_BG};
+            color: {BTN_FG};
             border: none;
             border-radius: 0;
             padding: 6px 14px;
             font-size: 14px;
             font-family: "Segoe UI Symbol";
         }}
-        QPushButton#closebtn:hover {{ background-color: #c0392b; color: white; }}
+        QPushButton#closebtn:hover {{
+            background-color: #c0392b;
+            color: white;
+        }}
         QListWidget {{
             background-color: {BG_INPUT};
-            color: {FG};
+            color: {INPUT_FG};
             border: 1px solid {BORDER};
             border-radius: 8px;
             padding: 4px;
         }}
-        QListWidget::item {{ padding: 6px 8px; border-radius: 4px; }}
-        QListWidget::item:hover {{ background-color: {BORDER}; }}
-        QListWidget::item:selected {{ background-color: {ACCENT}; color: white; }}
+        QListWidget::item {{
+            padding: 6px 8px;
+            border-radius: 4px;
+        }}
+        QListWidget::item:hover {{
+            background-color: {BORDER};
+        }}
+        QListWidget::item:selected {{
+            background-color: {ACCENT};
+            color: {BTN_FG};
+        }}
         QProgressBar {{
             background-color: {BG_CARD};
             border: none;
             border-radius: 6px;
             height: 12px;
             text-align: center;
+            color: {CARD_FG};
         }}
         QProgressBar::chunk {{
             border-radius: 6px;
             background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
                 stop:0 {ACCENT}, stop:1 {ACCENT_HOVER});
         }}
-        QCheckBox, QRadioButton {{ spacing: 8px; padding: 4px; }}
-        QCheckBox::indicator, QRadioButton::indicator {{ width: 16px; height: 16px; }}
+        QCheckBox, QRadioButton {{
+            spacing: 8px;
+            padding: 4px;
+            color: {FG};
+        }}
+        QFrame#card QCheckBox, QFrame#card QRadioButton {{
+            color: {CARD_FG};
+        }}
+        QCheckBox::indicator, QRadioButton::indicator {{
+            width: 16px;
+            height: 16px;
+        }}
         QCheckBox::indicator:unchecked {{
-            background-color: {BG_INPUT}; border: 1px solid {BORDER}; border-radius: 3px;
+            background-color: {BG_INPUT};
+            border: 2px solid {BORDER};
+            border-radius: 3px;
         }}
         QCheckBox::indicator:checked {{
-            background-color: {ACCENT}; border: 1px solid {ACCENT}; border-radius: 3px;
+            background-color: {ACCENT};
+            border: 2px solid {BTN_FG};
+            border-radius: 3px;
         }}
         QRadioButton::indicator:unchecked {{
-            background-color: {BG_INPUT}; border: 1px solid {BORDER}; border-radius: 8px;
+            background-color: {BG_INPUT};
+            border: 2px solid {BORDER};
+            border-radius: 9px;
         }}
         QRadioButton::indicator:checked {{
-            background-color: {ACCENT}; border: 1px solid {ACCENT}; border-radius: 8px;
+            background-color: {ACCENT};
+            border: 2px solid {BTN_FG};
+            border-radius: 9px;
         }}
-        QScrollArea {{ background-color: {BG}; border: none; }}
+        QScrollArea {{
+            background-color: {BG};
+            border: none;
+        }}
         QScrollBar:vertical {{
-            background-color: {BG}; width: 10px; border: none;
+            background-color: {BG};
+            width: 10px;
+            border: none;
         }}
         QScrollBar::handle:vertical {{
-            background-color: {BORDER}; border-radius: 5px; min-height: 20px;
+            background-color: {BORDER};
+            border-radius: 5px;
+            min-height: 20px;
         }}
-        QScrollBar::handle:vertical:hover {{ background-color: {ACCENT}; }}
+        QScrollBar::handle:vertical:hover {{
+            background-color: {ACCENT};
+        }}
         QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-            background: none; height: 0;
+            background: none;
+            height: 0;
         }}
         QTextEdit {{
-            background-color: {BG_INPUT}; color: {FG};
-            border: 1px solid {BORDER}; border-radius: 8px; padding: 8px;
+            background-color: {BG_INPUT};
+            color: {INPUT_FG};
+            border: 1px solid {BORDER};
+            border-radius: 8px;
+            padding: 8px;
         }}
     """
 
@@ -1289,7 +1450,7 @@ class DownloaderApp(QMainWindow):
         # URL
         self.url_card = Card()
         url_lbl = QLabel("Ссылка")
-        url_lbl.setStyleSheet(f"color: {FG_DIM}; font-size: 11px;")
+        url_lbl.setStyleSheet("font-size: 11px;")
         self.url_card.add(url_lbl)
 
         url_row = QHBoxLayout()
@@ -1308,6 +1469,7 @@ class DownloaderApp(QMainWindow):
         self.url_input.setPlaceholderText(_lang["placeholder"])
 
         self.btn_paste = QPushButton("📋")
+        self.btn_paste.setObjectName("input_btn")
         self.btn_paste.setFixedWidth(42)
         self.btn_paste.setToolTip("Вставить из буфера")
         self.btn_paste.clicked.connect(self._paste_from_clipboard)
@@ -1326,17 +1488,20 @@ class DownloaderApp(QMainWindow):
         dir_row.addWidget(dir_icon)
 
         self.dir_label = QLabel(settings.get_output_dir(self.settings))
-        self.dir_label.setStyleSheet(f"color: {FG_DIM}; font-size: 11px;")
+        self.dir_label.setObjectName("dir_label")
+        self.dir_label.setStyleSheet(f"font-size: 11px;")
         self.dir_label.setWordWrap(True)
         dir_row.addWidget(self.dir_label, stretch=1)
 
         self.btn_open_dir = QPushButton("📂")
+        self.btn_open_dir.setObjectName("input_btn")
         self.btn_open_dir.setFixedWidth(38)
         self.btn_open_dir.setToolTip("Открыть папку")
         self.btn_open_dir.clicked.connect(self._open_output_dir)
         dir_row.addWidget(self.btn_open_dir)
 
         self.btn_choose_dir = QPushButton("Выбрать")
+        self.btn_choose_dir.setObjectName("input_btn")
         self.btn_choose_dir.clicked.connect(self._choose_dir)
         dir_row.addWidget(self.btn_choose_dir)
 
@@ -1347,7 +1512,7 @@ class DownloaderApp(QMainWindow):
         # Настройки
         self.opts_card = Card()
         opts_title = QLabel("Настройки")
-        opts_title.setStyleSheet(f"color: {FG}; font-size: 12px; font-weight: bold;")
+        opts_title.setStyleSheet("font-size: 12px; font-weight: bold;")
         self.opts_card.add(opts_title)
 
         self._add_radio_row(self.opts_card, "Контейнер:", "container",
@@ -1368,7 +1533,7 @@ class DownloaderApp(QMainWindow):
         self.mode_card = Card()
         mode_row = QHBoxLayout()
         mode_lbl = QLabel("Режим:")
-        mode_lbl.setStyleSheet(f"color: {FG_DIM}; font-size: 11px;")
+        mode_lbl.setStyleSheet("font-size: 11px;")
         mode_lbl.setFixedWidth(80)
         mode_row.addWidget(mode_lbl)
 
@@ -1416,7 +1581,7 @@ class DownloaderApp(QMainWindow):
         # Качество
         self.fmt_card = Card()
         fmt_title = QLabel("Качество")
-        fmt_title.setStyleSheet(f"color: {FG}; font-size: 12px; font-weight: bold;")
+        fmt_title.setStyleSheet("font-size: 12px; font-weight: bold;")
         self.fmt_card.add(fmt_title)
 
         self.quality_group = QualityGroup(on_change=self._on_quality_change, columns=3)
@@ -1496,7 +1661,7 @@ class DownloaderApp(QMainWindow):
         row.setSpacing(8)
 
         lbl = QLabel(label_text)
-        lbl.setStyleSheet(f"color: {FG_DIM}; font-size: 11px;")
+        lbl.setStyleSheet("font-size: 11px;")
         lbl.setFixedWidth(80)
         row.addWidget(lbl)
 
@@ -2948,23 +3113,45 @@ class DownloaderApp(QMainWindow):
             QtToast(self, f"⚠️ Ошибка: {e}")
 
     def _on_close(self):
+        """Закрытие главного окна. Если плеер открыт — просто скрываемся."""
+        # сохраняем геометрию
         try:
             geom = f"{self.width()}x{self.height()}"
             self.settings["window_geometry"] = geom
         except Exception:
             pass
 
+        # сохраняем настройки
         self.settings["mode"] = "audio" if self.rb_mode_audio.isChecked() else "video"
         self.settings["container"] = self._get_checked("_rb_container", "mp4")
         self.settings["audio_mode"] = self._get_checked("_rb_audio_mode", "best")
         self.settings["audio_codec"] = self._get_checked("_rb_audio_codec", "aac")
         self.settings["mark_settings"] = self.mark_check.isChecked()
-        # НЕ сохраняем настройки при закрытии (они уже сохранены при действиях)
-        print("DEBUG: _on_close — сохранение отключено")
+        settings.save(self.settings)
 
         if getattr(self, "_glow_timer", None):
             self._glow_timer.stop()
 
+        # ==== ПРОВЕРКА: плеер открыт? ====
+        player = getattr(self, "_player_window", None)
+        player_alive = player is not None and player.isVisible()
+
+        if player_alive:
+            # Плеер играет — просто СКРЫВАЕМ главное окно
+            print("🎵 Плеер открыт — скрываю главное окно, плеер продолжает играть")
+            self.hide()
+
+            # Прячем трей, но НЕ выходим из приложения
+            if self._tray_icon:
+                try:
+                    self._tray_icon.hide()
+                except Exception:
+                    pass
+
+            # Не вызываем QApplication.quit() — процесс живёт из-за плеера
+            return
+
+        # ==== Плеер не открыт — нормальный выход ====
         if self._tray_icon:
             try:
                 self._tray_icon.hide()
